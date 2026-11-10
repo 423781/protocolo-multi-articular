@@ -1,0 +1,954 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Protocolo Multi-Articular</title>
+<style>
+  :root{
+    --accent:#1B7F8C; --accent-soft:#E3F1F2; --bg:#F6F8F9; --card:#FFFFFF;
+    --border:#E4EAEC; --text:#15202B; --muted:#5B6B76; --muted2:#8C98A1;
+    --green:#1C8A5A; --green-bg:#E4F6EC; --yellow:#9A6B00; --yellow-bg:#FFF3DA;
+    --red:#C13515; --red-bg:#FBE4DE; --locked:#EEF1F2; --locked-text:#4C5A63;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;background:var(--bg);color:var(--text)}
+  a{text-decoration:none;color:inherit}
+  button{font-family:inherit;cursor:pointer}
+  #app{max-width:480px;margin:0 auto;min-height:100vh;background:var(--bg);display:flex;flex-direction:column}
+  .topbar{padding:20px 20px 8px;display:flex;flex-direction:column;gap:8px}
+  .back{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--muted);background:none;border:none;padding:4px 0;align-self:flex-start}
+  h1{margin:0;font-size:22px;font-weight:700}
+  h2{margin:0;font-size:15px;font-weight:700}
+  .muted{color:var(--muted);font-size:13.5px;line-height:1.4}
+  .content{flex:1;padding:8px 20px 100px;display:flex;flex-direction:column;gap:16px}
+  .card{background:var(--card);border:1.5px solid var(--border);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
+  .badge{font-size:11px;font-weight:600;border-radius:999px;padding:3px 9px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+  .badge-green{color:var(--green);background:var(--green-bg)}
+  .badge-yellow{color:var(--yellow);background:var(--yellow-bg)}
+  .badge-red{color:var(--red);background:var(--red-bg)}
+  .badge-grey{color:var(--locked-text);background:var(--locked)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .btn{border:none;border-radius:12px;background:var(--accent);color:#fff;font-size:15px;font-weight:700;padding:13px 16px;width:100%}
+  .btn-outline{border:1.5px solid var(--accent);border-radius:12px;background:#fff;color:var(--accent);font-size:14px;font-weight:700;padding:11px 16px;width:100%}
+  .btn-ghost{border:1.5px solid var(--border);border-radius:10px;background:#fff;color:var(--text);font-size:13px;font-weight:600;padding:9px 14px}
+  .btn-sm{font-size:13px;padding:9px 14px;border-radius:10px}
+  textarea,input[type=text],input[type=password],input[type=number]{font-family:inherit;border:1.5px solid var(--border);border-radius:12px;padding:12px;font-size:14px;color:var(--text);background:#fff;width:100%}
+  textarea{resize:vertical}
+  label{font-size:13px;font-weight:600;color:var(--text)}
+  .sectlabel{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+  .progress{height:6px;border-radius:999px;background:var(--border);overflow:hidden}
+  .progress>div{height:100%;background:var(--accent)}
+  .sticky{position:sticky;bottom:0;padding:14px 20px 20px;background:linear-gradient(to top,var(--bg) 70%,transparent);display:flex;flex-direction:column;gap:8px}
+  .joint-icon{width:40px;height:40px;border-radius:12px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;flex:none}
+  .pillrow{display:flex;gap:8px;flex-wrap:wrap}
+  .pain-btn{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--border);background:#fff;font-size:13px;font-weight:700;color:var(--text)}
+  .pain-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+  .dropzone{border:1.5px dashed #BFCBD1;border-radius:16px;background:#fff;padding:22px 16px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+  .gifwrap{width:100%;aspect-ratio:1/1;max-height:220px;border-radius:12px;overflow:hidden;background:var(--locked);display:flex;align-items:center;justify-content:center}
+  .gifwrap img{width:100%;height:100%;object-fit:cover}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 18px;border-radius:999px;font-size:13px;z-index:50;max-width:90vw}
+  .divider{display:flex;align-items:center;gap:10px}
+  .divider>div{flex:1;height:1px;background:var(--border)}
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;justify-content:center;z-index:40}
+  .modal{background:#fff;border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:480px;display:flex;flex-direction:column;gap:12px;max-height:85vh;overflow-y:auto}
+  .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .bars{display:flex;align-items:flex-end;gap:5px;height:40px}
+  .bars>div{width:100%;border-radius:3px;background:var(--accent-soft)}
+  .err{font-size:12.5px;color:var(--red);background:var(--red-bg);border-radius:10px;padding:8px 10px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+'use strict';
+
+/* ===================== DADOS ===================== */
+
+const GIF_FILES = [
+"001_Alongamento_lateral_do_pescoco__Regiao_Pescoco_e_cervical.gif","002_Alongamento_cervical_com_pressao_lateral__Regiao_Pescoco_e_cervical.gif",
+"003_Alongamento_do_deltoide_posterior__Regiao_Ombros_e_escapulas.gif","004_Rotacao_externa_do_ombro_deitado_com_halter__Regiao_Ombros_e_escapulas.gif",
+"005_Rotacao_interna_do_ombro_sentado_na_polia__Regiao_Ombros_e_escapulas.gif","006_Rotacao_externa_do_ombro_em_pe_na_polia__Regiao_Ombros_e_escapulas.gif",
+"007_Rotacao_externa_do_ombro_em_pe_com_halter__Regiao_Ombros_e_escapulas.gif","008_Desenvolvimento_de_ombros_sentado_com_faixa__Regiao_Ombros_e_escapulas.gif",
+"009_Desenvolvimento_de_ombros_com_faixa__Regiao_Ombros_e_escapulas.gif","010_Remada_em_pe_com_faixa_para_deltoide_posterior__Regiao_Ombros_e_escapulas.gif",
+"011_Elevacao_frontal_e_lateral_com_faixa__Regiao_Ombros_e_escapulas.gif","012_Elevacao_frontal_com_faixa__Regiao_Ombros_e_escapulas.gif",
+"013_Elevacao_em_Y_com_faixa__Regiao_Ombros_e_escapulas.gif","014_Remada_para_deltoide_posterior_com_halteres__Regiao_Ombros_e_escapulas.gif",
+"015_Elevacao_frontal_do_ombro_na_polia__Regiao_Ombros_e_escapulas.gif","016_Crucifixo_invertido_com_faixa__Regiao_Ombros_e_escapulas.gif",
+"017_Desenvolvimento_acima_da_cabeca_com_rotacao_e_faixa__Regiao_Ombros_e_escapulas.gif","018_Crucifixo_invertido_com_rotacao_e_halteres__Regiao_Ombros_e_escapulas.gif",
+"019_Desenvolvimento_alternado_de_ombros_sentado__Regiao_Ombros_e_escapulas.gif","020_Desenvolvimento_de_ombros_sentado_com_halteres__Regiao_Ombros_e_escapulas.gif",
+"021_Desenvolvimento_de_ombros_sentado_com_pegada_paralela__Regiao_Ombros_e_escapulas.gif","022_Elevacao_do_deltoide_posterior_deitado_no_chao_com_halteres__Regiao_Ombros_e_escapulas.gif",
+"023_Elevacao_lateral_posterior_unilateral_deitado_com_halter__Regiao_Ombros_e_escapulas.gif","024_Elevacao_lateral_posterior_deitado_com_halteres__Regiao_Ombros_e_escapulas.gif",
+"025_Elevacao_frontal_alternada_sentado_com_halteres__Regiao_Ombros_e_escapulas.gif","026_Elevacao_lateral_sentado_com_cotovelos_flexionados__Regiao_Ombros_e_escapulas.gif",
+"027_Alongamento_lateral_do_punho__Regiao_Antebracos_punhos_e_maos.gif","028_Circulos_de_punho__Regiao_Antebracos_punhos_e_maos.gif",
+"029_Flexao_reversa_do_punho_com_faixa__Regiao_Antebracos_punhos_e_maos.gif","030_Flexao_do_punho_com_faixa__Regiao_Antebracos_punhos_e_maos.gif",
+"031_Rotacao_unilateral_do_antebraco_sentado_com_halter__Regiao_Antebracos_punhos_e_maos.gif","032_Flexao_modificada_com_apoio_nos_antebracos__Regiao_Antebracos_punhos_e_maos.gif",
+"033_Flexao_neutra_unilateral_do_punho_sentado_com_halter__Regiao_Antebracos_punhos_e_maos.gif","034_Flexao_dos_punhos_sentado_com_as_palmas_para_cima__Regiao_Antebracos_punhos_e_maos.gif",
+"035_Flexao_dos_punhos_em_pe_na_polia_atras_do_corpo__Regiao_Antebracos_punhos_e_maos.gif","036_Flexao_reversa_unilateral_do_punho_com_halter__Regiao_Antebracos_punhos_e_maos.gif",
+"037_Flexao_unilateral_do_punho_com_halter__Regiao_Antebracos_punhos_e_maos.gif","038_Flexao_reversa_unilateral_do_punho_apoiado_no_banco__Regiao_Antebracos_punhos_e_maos.gif",
+"039_Flexao_unilateral_do_punho_apoiado_no_banco__Regiao_Antebracos_punhos_e_maos.gif","040_Flexao_reversa_dos_punhos_apoiados_no_banco__Regiao_Antebracos_punhos_e_maos.gif",
+"041_Flexao_dos_punhos_apoiados_no_banco__Regiao_Antebracos_punhos_e_maos.gif","042_Flexao_reversa_dos_punhos_com_halteres__Regiao_Antebracos_punhos_e_maos.gif",
+"043_Alongamento_de_triceps_acima_da_cabeca__Regiao_Bracos_e_cotovelos.gif","044_Alongamento_de_triceps__Regiao_Bracos_e_cotovelos.gif",
+"045_Extensao_assistida_de_triceps_em_pe_com_toalha__Regiao_Bracos_e_cotovelos.gif","046_Alongamento_de_triceps_sentado_na_bola_suica__Regiao_Bracos_e_cotovelos.gif",
+"047_Extensao_de_triceps_ajoelhado_com_peso_corporal__Regiao_Bracos_e_cotovelos.gif","048_Extensao_lateral_de_triceps_com_faixa__Regiao_Bracos_e_cotovelos.gif",
+"049_Flexao_de_biceps_deitado_de_lado_com_peso_corporal__Regiao_Bracos_e_cotovelos.gif","050_Avanco_frontal_com_extensao_de_triceps_e_halteres__Regiao_Bracos_e_cotovelos.gif",
+"051_Flexao_de_biceps_sentado_com_faixa__Regiao_Bracos_e_cotovelos.gif","052_Extensao_alternada_de_triceps_deitado_com_halteres__Regiao_Bracos_e_cotovelos.gif",
+"053_Extensao_de_triceps_deitado_cruzando_o_rosto__Regiao_Bracos_e_cotovelos.gif","054_Extensao_unilateral_de_triceps_pronada_deitado_com_halter__Regiao_Bracos_e_cotovelos.gif",
+"055_Extensao_unilateral_de_triceps_supinada_deitado_com_halter__Regiao_Bracos_e_cotovelos.gif","056_Extensao_unilateral_de_triceps_deitado_com_halter__Regiao_Bracos_e_cotovelos.gif",
+"057_Extensao_de_triceps_deitado_com_halteres__Regiao_Bracos_e_cotovelos.gif","058_Extensao_de_triceps_sentado_no_banco_com_halter__Regiao_Bracos_e_cotovelos.gif",
+"059_Alongamento_do_latissimo_ajoelhado__Regiao_Costas_e_coluna.gif","060_Alongamento_lombar_sentado__Regiao_Costas_e_coluna.gif",
+"061_Alongamento_lateral_deitado_no_chao__Regiao_Costas_e_coluna.gif","062_Alongamento_lateral_em_pe__Regiao_Costas_e_coluna.gif",
+"063_Extensao_de_coluna_com_rotacao_na_bola_suica__Regiao_Costas_e_coluna.gif","064_Alongamento_de_peitoral_com_o_braco_atras__Regiao_Costas_e_coluna.gif",
+"065_Alongamento_da_coluna__Regiao_Costas_e_coluna.gif","066_Alongamento_da_parte_superior_das_costas__Regiao_Costas_e_coluna.gif",
+"067_Alongamento_lateral_do_latissimo_deitado_na_bola_suica__Regiao_Costas_e_coluna.gif","068_Alongamento_das_costas_com_rolo__Regiao_Costas_e_coluna.gif",
+"069_Alongamento_lateral_do_latissimo_com_rolo__Regiao_Costas_e_coluna.gif","070_Alongamento_do_latissimo_na_bola_suica__Regiao_Costas_e_coluna.gif",
+"071_Bola_de_exercicios_para_alongamento_da_regiao_lombar_piramide__Regiao_Costas_e_coluna.gif","072_Inclinacao_pelvica_em_pe__Regiao_Costas_e_coluna.gif",
+"073_Hiperextensao__Regiao_Costas_e_coluna.gif","074_Hiperextensao_no_banco__Regiao_Costas_e_coluna.gif",
+"075_Remada_com_agachamento_usando_peso_corporal__Regiao_Costas_e_coluna.gif","076_Remada_com_agachamento_e_toalha__Regiao_Costas_e_coluna.gif",
+"077_Extensao_de_coluna_na_bola_suica__Regiao_Costas_e_coluna.gif","078_Remada_unilateral_sentada_com_rotacao_e_faixa__Regiao_Costas_e_coluna.gif",
+"079_Remada_unilateral_em_pe_com_pegada_fechada__Regiao_Costas_e_coluna.gif","080_Remada_em_pe_com_pegada_fechada__Regiao_Costas_e_coluna.gif",
+"081_Remada_unilateral_em_pe_com_peso_corporal__Regiao_Costas_e_coluna.gif","082_Remada_unilateral_em_pe_com_toalha__Regiao_Costas_e_coluna.gif",
+"083_Remada_em_pe_com_peso_corporal__Regiao_Costas_e_coluna.gif","084_Remada_em_pe_com_toalha__Regiao_Costas_e_coluna.gif",
+"085_Extensao_de_coluna_na_bola_suica_com_bracos_estendidos__Regiao_Costas_e_coluna.gif","086_Extensao_de_coluna_na_bola_suica_com_maos_atras_da_cabeca__Regiao_Costas_e_coluna.gif",
+"087_Alongamento_assistido_do_reto_femoral_deitado__Regiao_Lombar_e_core.gif","088_Prancha_ajoelhada_e_toque_no_ombro_masculino__Regiao_Lombar_e_core.gif",
+"089_Dead_bug__Regiao_Lombar_e_core.gif","090_Abdominal_com_joelhos_flexionados__Regiao_Lombar_e_core.gif",
+"091_Abdominal_com_joelhos_flexionados_e_bracos_estendidos__Regiao_Lombar_e_core.gif","092_Inclinacao_pelvica__Regiao_Lombar_e_core.gif",
+"093_Ponte_com_mountain_climber_cruzado__Regiao_Lombar_e_core.gif","094_Abdominal_lateral_sentado_na_parede__Regiao_Lombar_e_core.gif",
+"095_Ponte_lateral_v_2__Regiao_Lombar_e_core.gif","096_Elevacao_de_pernas_deitado_em_banco_reto__Regiao_Lombar_e_core.gif",
+"097_Elevacao_de_pernas_e_quadril_deitado__Regiao_Lombar_e_core.gif","098_Elevacao_de_perna_sentada__Regiao_Lombar_e_core.gif",
+"099_Toque_alternado_nos_ombros__Regiao_Lombar_e_core.gif","100_Elevacao_de_perna_estendida_deitado_com_faixa__Regiao_Lombar_e_core.gif",
+"101_Prancha_lateral_inclinada_com_peso_corporal__Regiao_Lombar_e_core.gif","102_Prancha_frontal_com_torcao__Regiao_Lombar_e_core.gif",
+"103_Prancha_com_mudanca_de_apoio__Regiao_Lombar_e_core.gif","104_Flexao_para_prancha_lateral__Regiao_Lombar_e_core.gif",
+"105_Prancha_reversa_com_levantamento_de_perna__Regiao_Lombar_e_core.gif","106_Elevacao_de_pernas_estendidas_na_cadeira_romana__Regiao_Lombar_e_core.gif",
+"107_Elevacao_do_quadril_joelho_dobrado__Regiao_Lombar_e_core.gif","108_Elevacao_de_quadril_inclinada_com_pernas_estendidas__Regiao_Lombar_e_core.gif",
+"109_Elevacao_de_pernas_com_rotacao__Regiao_Lombar_e_core.gif","110_Elevacao_de_pernas_com_rotacao_variacao_feminina__Regiao_Lombar_e_core.gif",
+"111_Elevacao_vertical_de_pernas_nas_barras_paralelas__Regiao_Lombar_e_core.gif","112_Avanco_com_rotacao_do_tronco__Regiao_Lombar_e_core.gif",
+"113_Agachamento_profundo_com_apoio__Regiao_Lombar_e_core.gif","114_Extensao_abdominal_com_roda_assistida_por_faixa__Regiao_Lombar_e_core.gif",
+"115_Abdominal_assistido__Regiao_Lombar_e_core.gif","116_Cotovelo_ao_joelho_deitado__Regiao_Lombar_e_core.gif",
+"117_Abdominal_com_rotacao_ajoelhado_e_faixa__Regiao_Lombar_e_core.gif","118_Rotacao_do_tronco_sentado_com_faixa__Regiao_Lombar_e_core.gif",
+"119_Abdominal_em_pe_com_faixa__Regiao_Lombar_e_core.gif","120_Abdominal_em_pe_com_rotacao_e_faixa__Regiao_Lombar_e_core.gif",
+"121_Ponte_unilateral_com_perna_estendida__Regiao_Quadril_coxas_e_joelhos.gif","122_Alongamento_de_gluteos_deitado_assistido__Regiao_Quadril_coxas_e_joelhos.gif",
+"123_Alongamento_de_gluteo_e_piriforme_deitado_assistido__Regiao_Quadril_coxas_e_joelhos.gif","124_Alongamento_assistido_de_quadriceps_em_decubito_ventral__Regiao_Quadril_coxas_e_joelhos.gif",
+"125_Alongamento_do_adutor_deitado_de_lado_assistido__Regiao_Quadril_coxas_e_joelhos.gif","126_Ponte_com_inclinacao_pelvica__Regiao_Quadril_coxas_e_joelhos.gif",
+"127_Alongamento_de_quadriceps_deitado_lateral__Regiao_Quadril_coxas_e_joelhos.gif","128_Alongamento_de_gluteo_sentado__Regiao_Quadril_coxas_e_joelhos.gif",
+"129_Alongamento_do_piriforme_sentado__Regiao_Quadril_coxas_e_joelhos.gif","130_Ponte_lateral_com_abducao_de_quadril__Regiao_Quadril_coxas_e_joelhos.gif",
+"131_Rotacao_interna_de_quadril_deitado_com_faixa__Regiao_Quadril_coxas_e_joelhos.gif","132_Rotacao_interna_de_quadril_sentado_com_faixa__Regiao_Quadril_coxas_e_joelhos.gif",
+"133_Alongamento_de_quadriceps_em_quatro_apoios__Regiao_Quadril_coxas_e_joelhos.gif","134_Alongamento_com_perna_estendida_na_cadeira__Regiao_Quadril_coxas_e_joelhos.gif",
+"135_Alongamento_dos_isquiotibiais__Regiao_Quadril_coxas_e_joelhos.gif","136_Alongamento_em_cruz_de_ferro__Regiao_Quadril_coxas_e_joelhos.gif",
+"137_Alongamento_de_isquiotibiais_com_a_perna_elevada__Regiao_Quadril_coxas_e_joelhos.gif","138_Alongamento_do_sapo_com_balanco__Regiao_Quadril_coxas_e_joelhos.gif",
+"139_Alongamento_do_corredor__Regiao_Quadril_coxas_e_joelhos.gif","140_Alongamento_global_em_avanco__Regiao_Quadril_coxas_e_joelhos.gif",
+"141_Alongamento_de_isquiotibiais_sentado_com_bola_de_exercicio__Regiao_Quadril_coxas_e_joelhos.gif","142_Aducao_do_quadril_na_prancha_lateral__Regiao_Quadril_coxas_e_joelhos.gif",
+"143_Alongamento_lateral_do_quadril_com_rolo__Regiao_Quadril_coxas_e_joelhos.gif","144_Alongamento_de_quadril_com_rolo__Regiao_Quadril_coxas_e_joelhos.gif",
+"145_Alongamento_do_flexor_do_quadril_com_bola_de_exercicio__Regiao_Quadril_coxas_e_joelhos.gif","146_Hiperextensao_reversa_na_bola_suica__Regiao_Quadril_coxas_e_joelhos.gif",
+"147_Aducao_de_quadril_deitado_de_lado__Regiao_Quadril_coxas_e_joelhos.gif","148_Abducao_de_quadril_sentado_com_faixa__Regiao_Quadril_coxas_e_joelhos.gif",
+"149_Extensao_de_quadril_no_banco__Regiao_Quadril_coxas_e_joelhos.gif","150_Extensao_de_quadril_inclinado_com_faixa__Regiao_Quadril_coxas_e_joelhos.gif",
+"151_Extensao_de_perna_com_faixa_de_resistencia__Regiao_Quadril_coxas_e_joelhos.gif","152_Ponte_de_gluteos_com_marcha__Regiao_Quadril_coxas_e_joelhos.gif",
+"153_Ponte_de_gluteos_com_duas_pernas_no_banco__Regiao_Quadril_coxas_e_joelhos.gif","154_Ponte_baixa_de_gluteos_no_chao__Regiao_Quadril_coxas_e_joelhos.gif",
+"155_Agachamento_com_remada_usando_faixa__Regiao_Quadril_coxas_e_joelhos.gif","156_Abducao_lateral_do_quadril__Regiao_Quadril_coxas_e_joelhos.gif",
+"157_Avanco_caminhando__Regiao_Quadril_coxas_e_joelhos.gif","158_Rotacao_da_parte_inferior_do_tronco_com_uma_perna_na_bola_suica__Regiao_Quadril_coxas_e_joelhos.gif",
+"159_Marcha_isometrica_sentada_na_parede__Regiao_Quadril_coxas_e_joelhos.gif","160_Elevacao_gluteo_isquiotibial__Regiao_Quadril_coxas_e_joelhos.gif",
+"161_Agachamento_cruzado__Regiao_Quadril_coxas_e_joelhos.gif","162_Avanco_frontal__Regiao_Quadril_coxas_e_joelhos.gif",
+"163_Alongamento_do_soleo_na_parede__Regiao_Pernas_tornozelos_e_pes.gif","164_Alongamento_do_gastrocnemio_na_parede__Regiao_Pernas_tornozelos_e_pes.gif",
+"165_Alongamento_de_panturrilha_sentado__Regiao_Pernas_tornozelos_e_pes.gif","166_Alongamento_de_panturrilha_em_pe__Regiao_Pernas_tornozelos_e_pes.gif",
+"167_Alongamento_assistido_de_panturrilha_deitado__Regiao_Pernas_tornozelos_e_pes.gif","168_Circulos_de_mobilidade_dos_joelhos__Regiao_Pernas_tornozelos_e_pes.gif",
+"169_Elevacao_de_panturrilhas_na_parede_com_bola_entre_os_tornozelos__Regiao_Pernas_tornozelos_e_pes.gif","170_Elevacao_de_panturrilhas_em_pe__Regiao_Pernas_tornozelos_e_pes.gif",
+"171_Elevacao_de_panturrilhas_no_degrau__Regiao_Pernas_tornozelos_e_pes.gif","172_Elevacao_de_panturrilhas_tipo_donkey__Regiao_Pernas_tornozelos_e_pes.gif",
+"173_Elevacao_unilateral_de_panturrilha_tipo_donkey__Regiao_Pernas_tornozelos_e_pes.gif","174_Elevacao_unilateral_de_panturrilha_no_chao__Regiao_Pernas_tornozelos_e_pes.gif",
+"175_Elevacao_unilateral_de_panturrilha_com_faixa__Regiao_Pernas_tornozelos_e_pes.gif","176_Dorsiflexao_unilateral_com_faixa__Regiao_Pernas_tornozelos_e_pes.gif",
+"177_Elevacao_bilateral_de_panturrilhas_com_faixa__Regiao_Pernas_tornozelos_e_pes.gif","178_Circulos_no_tornozelo__Regiao_Pernas_tornozelos_e_pes.gif",
+"179_Elevacao_de_panturrilhas_na_parede_com_bola_suica__Regiao_Pernas_tornozelos_e_pes.gif","180_Elevacao_de_panturrilhas_na_parede_com_bola_entre_os_joelhos__Regiao_Pernas_tornozelos_e_pes.gif",
+"181_Elevacao_de_panturrilhas_sentado_com_halteres__Regiao_Pernas_tornozelos_e_pes.gif","182_Elevacao_unilateral_de_panturrilha_sentado_com_halter__Regiao_Pernas_tornozelos_e_pes.gif",
+"183_Alongamento_assistido_do_peitoral_maior_sentado_com_bola_suica__Regiao_Peitoral_e_cintura_escapular.gif","184_Alongamento_do_peito_e_da_parte_anterior_dos_ombros__Regiao_Peitoral_e_cintura_escapular.gif",
+"185_Alongamento_dinamico_do_peitoral__Regiao_Peitoral_e_cintura_escapular.gif","186_Alongamento_peitoral_com_os_bracos_atras_da_cabeca__Regiao_Peitoral_e_cintura_escapular.gif",
+"187_Alongamento_de_peito_com_bola_de_exercicios__Regiao_Peitoral_e_cintura_escapular.gif","188_Flexao_escapular_inclinada__Regiao_Peitoral_e_cintura_escapular.gif",
+"189_Flexao_escapular__Regiao_Peitoral_e_cintura_escapular.gif","190_Mobilizacao_de_ombros_sentado_com_rolo__Regiao_Peitoral_e_cintura_escapular.gif",
+"191_Mobilizacao_de_ombros_sentado_com_rolo_e_perna_elevada__Regiao_Peitoral_e_cintura_escapular.gif","192_Flexao_de_braco_com_toque_no_ombro__Regiao_Peitoral_e_cintura_escapular.gif",
+"193_Flexao_de_braco_na_parede__Regiao_Peitoral_e_cintura_escapular.gif","194_Flexao_de_braco_na_parede_variacao_2__Regiao_Peitoral_e_cintura_escapular.gif",
+"195_Avanco_caminhando_com_joelhos_altos__Regiao_Corpo_inteiro_e_condicionamento.gif","196_Joelho_alto_contra_a_parede__Regiao_Corpo_inteiro_e_condicionamento.gif",
+"197_Passos_para_frente_e_para_tras__Regiao_Corpo_inteiro_e_condicionamento.gif","198_Caminhada_do_urso__Regiao_Corpo_inteiro_e_condicionamento.gif",
+"199_Meio_agachamento__Regiao_Corpo_inteiro_e_condicionamento.gif","200_Escalador__Regiao_Corpo_inteiro_e_condicionamento.gif"
+];
+
+function parseGif(f){
+  const i = f.indexOf('__Regiao_');
+  const left = f.slice(0,i), right = f.slice(i+9);
+  return { filename:f, num:left.slice(0,3), name:left.slice(4).replace(/_/g,' '), regiao:right.replace('.gif','').replace(/_/g,' ') };
+}
+const GIF_CATALOG = GIF_FILES.map(parseGif);
+
+const JOINTS = {
+  ombro:  { label:'Ombro',  icon:'shoulder' },
+  joelho: { label:'Joelho', icon:'knee' },
+  punho:  { label:'Punho',  icon:'wrist' }
+};
+const LOCKED_JOINTS = ['Tornozelo','Coluna','Quadril'];
+
+// catálogo de lesões (da planilha "100 Planilhas de Exercícios de Fisioterapia")
+const LESOES = {
+  ombro: ["Ombro geral","Tendinopatia do Manguito Rotador","Síndrome de Dor Subacromial","Capsulite Adesiva","Instabilidade Anterior",
+    "Luxação pós-imobilização","Tendinopatia da Cabeça Longa do Bíceps","Entorse Acromioclavicular","Lesão Labral/SLAP","Discinesia Escapular",
+    "Artrose Glenoumeral","Fratura Proximal do Úmero","Tendinopatia Calcária","Tendinopatia do Supraespinal (conservador)",
+    "Epicondilalgia Lateral (cotovelo)","Epicondilalgia Medial (cotovelo)","Síndrome do Túnel Cubital (cotovelo)"],
+  joelho: ["Joelho geral","Tendinopatia Patelar","Condromalácia Patelar","Artrose do Joelho","Lesão de Menisco (conservador)",
+    "Entorse de LCA","Reconstrução de LCA (fase inicial)","Entorse de Ligamento Colateral Medial","Entorse de Ligamento Colateral Lateral",
+    "Síndrome da Banda Iliotibial","Bursite da Pata de Ganso","Tendinopatia do Quadríceps","Instabilidade Patelar",
+    "Doença de Osgood-Schlatter","Rigidez pós-imobilização","Cisto de Baker","Lesão Osteocondral"],
+  punho: ["Tendinite de Punho/Mão (geral)","Síndrome do Túnel do Carpo","Tenossinovite de De Quervain","Artrose da Base do Polegar",
+    "Dedo em Gatilho","Fratura do Rádio Distal pós-imobilização","Lesão do Complexo Fibrocartilaginoso do Punho","Entorse de Punho",
+    "Entorse de Dedo","Rigidez da Mão pós-imobilização","Síndrome do Túnel Radial"]
+};
+
+// exemplos reais extraídos da planilha, usados como referência de formato/fallback
+const EXEMPLOS = {
+  ombro: { lesao:"Ombro geral", exercicios:[
+    {nome:"Rotação Externa com Elástico", series:"2-3", repeticoes:"10-15 cada lado"},
+    {nome:"Elevação Frontal com Halter", series:"3-4", repeticoes:"10-15"},
+    {nome:"Rotação Interna com Elástico", series:"2-3", repeticoes:"10-15 cada lado"},
+    {nome:"Elevação Lateral dos Braços", series:"3-4", repeticoes:"10-15"},
+    {nome:"Remada Alta com Elástico", series:"3-4", repeticoes:"10-15"},
+    {nome:"Deslize na Parede", series:"2-3", repeticoes:"10-15"}
+  ]},
+  joelho: { lesao:"Condromalácia Patelar", exercicios:[
+    {nome:"Contração do Quadríceps (isométrica)", series:"3-4", repeticoes:"10-15 cada perna"},
+    {nome:"Elevação da Perna Estendida", series:"3-4", repeticoes:"10-15 cada perna"},
+    {nome:"Agachamento Parcial (técnica correta)", series:"3-4", repeticoes:"10-15"},
+    {nome:"Step-up (subir degrau baixo)", series:"3-4", repeticoes:"10-15 cada perna"},
+    {nome:"Ponte de Glúteos", series:"3-4", repeticoes:"12-15"},
+    {nome:"Alongamento de Quadríceps", series:"2-3", repeticoes:"20-30 segundos cada perna"}
+  ]},
+  punho: { lesao:"Tendinite de Punho/Mão (geral)", exercicios:[
+    {nome:"Flexão do Punho", series:"2-3", repeticoes:"10-15 cada lado"},
+    {nome:"Extensão do Punho", series:"2-3", repeticoes:"10-15 cada lado"},
+    {nome:"Desvio Radial do Punho", series:"2-3", repeticoes:"10-15 cada lado"},
+    {nome:"Desvio Ulnar do Punho", series:"2-3", repeticoes:"10-15 cada lado"},
+    {nome:"Aperto com Bola Macia", series:"2-3", repeticoes:"15-20 segundos"},
+    {nome:"Alongamento do Flexor do Punho", series:"2-3", repeticoes:"20-30 segundos"}
+  ]}
+};
+
+const FASES = [
+  {n:1, nome:"Proteger / acalmar", objetivo:"Reduzir dor e proteger a estrutura lesionada."},
+  {n:2, nome:"Restaurar capacidade", objetivo:"Recuperar amplitude de movimento e força básica."},
+  {n:3, nome:"Integrar função", objetivo:"Devolver força e controle para os movimentos do dia a dia."},
+  {n:4, nome:"Retornar e manter", objetivo:"Retomar atividade plena e manter o ganho conquistado."}
+];
+
+const SESSOES_POR_CICLO = 10;
+
+/* ===================== ESTADO / PERSISTÊNCIA ===================== */
+
+const STORAGE_KEY = 'pma_state_v1';
+
+function emptyJoint(){
+  return { status:'sem_plano', intake:null, faseAtual:1, cycles:[] };
+}
+function defaultState(){
+  return {
+    profile:null, geminiKey:'',
+    ui:{ screen:'onboarding', joint:null },
+    joints:{ ombro:emptyJoint(), joelho:emptyJoint(), punho:emptyJoint() }
+  };
+}
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return defaultState();
+    const parsed = JSON.parse(raw);
+    const base = defaultState();
+    return Object.assign(base, parsed, { joints: Object.assign(base.joints, parsed.joints||{}) });
+  }catch(e){ return defaultState(); }
+}
+function saveState(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){ console.warn('localStorage falhou', e); }
+}
+
+let state = loadState();
+let toastTimer = null;
+
+function nav(screen, joint){
+  state.ui = { screen, joint: joint||null };
+  saveState(); render();
+  window.scrollTo(0,0);
+}
+function showToast(msg){
+  clearTimeout(toastTimer);
+  const old = document.querySelector('.toast'); if(old) old.remove();
+  const el = document.createElement('div'); el.className='toast'; el.textContent = msg;
+  document.body.appendChild(el);
+  toastTimer = setTimeout(()=>el.remove(), 3200);
+}
+
+/* ===================== UTILITÁRIOS ===================== */
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function normalize(s){ return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim(); }
+const STOPWORDS = new Set(['com','de','do','da','em','e','a','o','no','na','ao','cada','lado','pe','pes']);
+
+function matchGif(exerciseName){
+  const tokens = normalize(exerciseName).split(' ').filter(w=>w.length>2 && !STOPWORDS.has(w));
+  // exige 2 palavras em comum (evita falso-positivo por 1 palavra genérica como "parede"/"bola"/"faixa");
+  // com só 1 palavra significativa no nome do exercício, aceita 1 match, mas só se a palavra for específica (>=6 letras)
+  const minScore = tokens.length<=1 ? 1 : 2;
+  let best=null, bestScore=0;
+  for(const g of GIF_CATALOG){
+    const gTokens = new Set(normalize(g.name).split(' '));
+    let score=0;
+    for(const t of tokens) if(gTokens.has(t)) score++;
+    if(score>bestScore){ bestScore=score; best=g; }
+  }
+  if(tokens.length<=1 && tokens[0] && tokens[0].length<6) return null;
+  return bestScore>=minScore ? best : null;
+}
+
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const r = new FileReader();
+    r.onload = ()=> resolve(r.result.split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+function fmtDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+}
+
+function currentCycle(j){ return j.cycles.length ? j.cycles[j.cycles.length-1] : null; }
+function currentSession(cycle){
+  if(!cycle) return null;
+  return cycle.sessoes.find(s=>!s.concluida) || null;
+}
+
+function computeSemaforo(j){
+  const c = currentCycle(j);
+  if(!c) return {label:'Continue', cls:'green'};
+  const done = c.sessoes.filter(s=>s.concluida);
+  if(!done.length) return {label:'Continue', cls:'green'};
+  const last = done[done.length-1];
+  const maxDor = Math.max(0, ...last.exercicios.map(e=>e.dor==null?0:e.dor));
+  if(maxDor>=8 || (last.dorDiaSeguinte!=null && last.dorDiaSeguinte>=7)) return {label:'Pare e avalie', cls:'red'};
+  if(maxDor>=5 || (last.dorDiaSeguinte!=null && last.dorDiaSeguinte>=5)) return {label:'Ajuste', cls:'yellow'};
+  return {label:'Continue', cls:'green'};
+}
+
+function painHistory(j){
+  const out=[];
+  for(const c of j.cycles){
+    for(const s of c.sessoes){
+      if(s.concluida){
+        const vals = s.exercicios.map(e=>e.dor).filter(v=>v!=null);
+        const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+        if(avg!=null) out.push(avg);
+      }
+    }
+  }
+  return out.slice(-7);
+}
+
+/* ===================== GEMINI ===================== */
+
+async function callGemini(apiKey, parts){
+  const model = 'gemini-3.8-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const body = { contents:[{ role:'user', parts }], generationConfig:{ temperature:0.4, responseMimeType:'application/json' } };
+  const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  if(!res.ok){
+    let errText=''; try{ errText = (await res.json())?.error?.message || await res.text(); }catch(e){}
+    throw new Error(`Gemini API (${res.status}): ${errText.slice(0,280)}`);
+  }
+  const data = await res.json();
+  const text = (data.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('');
+  if(!text) throw new Error('Gemini não retornou conteúdo (resposta vazia ou bloqueada).');
+  return text;
+}
+
+function extractJson(text){
+  let t = text.trim();
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if(fence) t = fence[1].trim();
+  const start = t.indexOf('{'), end = t.lastIndexOf('}');
+  if(start>=0 && end>start) t = t.slice(start, end+1);
+  return JSON.parse(t);
+}
+
+function buildIntakePrompt(jointKey, descricaoTexto){
+  const label = JOINTS[jointKey].label;
+  const lesoes = LESOES[jointKey];
+  const exemplo = EXEMPLOS[jointKey];
+  return `Você é um assistente de fisioterapia dentro de um app PESSOAL de reabilitação (uso individual, não comercial, não substitui avaliação presencial de um profissional).
+
+Articulação em avaliação: ${label}.
+${descricaoTexto ? `A pessoa não tem laudo e descreveu o que sente: "${descricaoTexto}"` : 'A pessoa anexou um laudo/exame (imagem ou PDF) — leia o conteúdo anexado.'}
+
+Catálogo de lesões já disponível para ${label} (prefira reconhecer uma destas quando o quadro clínico combinar; se nenhuma combinar bem, crie um nome de diagnóstico curto e apropriado):
+${lesoes.map(l=>'- '+l).join('\n')}
+
+Exemplo do padrão de prescrição esperado para esta articulação (é só referência de formato — não copie o conteúdo se a lesão identificada for outra):
+Lesão: ${exemplo.lesao}
+${exemplo.exercicios.map(e=>`- ${e.nome} — ${e.series} séries x ${e.repeticoes}`).join('\n')}
+
+Gere exatamente 6 exercícios apropriados para a Fase 1 (proteger/acalmar) de um ciclo de reabilitação de 10 sessões, no mesmo estilo (nome do exercício em português, séries como faixa "2-3" ou "3-4", repetições como faixa "10-15" — ou duração em segundos quando o exercício for isométrico/alongamento).
+
+Responda SOMENTE com um JSON válido, sem markdown e sem texto fora do JSON, neste formato exato:
+{
+  "diagnostico_resumo": "frase curta e simples em português explicando o que foi identificado",
+  "lesao_catalogada": "nome exato de uma lesão da lista acima, OU um nome novo curto se nada combinar bem",
+  "observacao_seguranca": "alerta curto se houver sinal que mereça avaliação presencial urgente, ou string vazia se não houver",
+  "exercicios": [
+    {"nome":"...", "series":"2-3", "repeticoes":"10-15"}
+  ]
+}`;
+}
+
+function buildNextCycleraPrompt(jointKey, j){
+  const label = JOINTS[jointKey].label;
+  const c = currentCycle(j);
+  const resumoSessoes = c.sessoes.filter(s=>s.concluida).map((s,i)=>{
+    const vals = s.exercicios.map(e=>`${e.nome}: dor ${e.dor ?? '-'}`).join(', ');
+    return `Sessão ${i+1}: ${vals}${s.dorDiaSeguinte!=null ? `, dor no dia seguinte: ${s.dorDiaSeguinte}`:''}`;
+  }).join('\n');
+  return `Você é um assistente de fisioterapia em um app PESSOAL de reabilitação (uso individual, não substitui avaliação presencial).
+
+Articulação: ${label}. Diagnóstico: ${j.intake.lesao_catalogada} (${j.intake.diagnostico_resumo}).
+A pessoa concluiu um ciclo de ${SESSOES_POR_CICLO} sessões. Histórico de dor registrado nas sessões:
+${resumoSessoes || 'sem registros'}
+
+Gere o PRÓXIMO ciclo: 6 exercícios progredindo em relação ao ciclo anterior (mais carga/dificuldade se a dor esteve controlada; mantenha mais conservador se houve dor alta), para a Fase ${Math.min(j.faseAtual+1,4)} ("${FASES[Math.min(j.faseAtual,3)].nome}") de um ciclo de reabilitação.
+
+Responda SOMENTE com um JSON válido, sem markdown, neste formato:
+{
+  "exercicios": [ {"nome":"...", "series":"2-3", "repeticoes":"10-15"} ]
+}`;
+}
+
+/* ===================== SVG ICONS ===================== */
+function svgIcon(name, color){
+  color = color || 'var(--accent)';
+  const icons = {
+    shoulder:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="7" r="3.2" stroke="${color}" stroke-width="2"/><path d="M8 10.5V21M8 10.5c4 0 6.5 1.8 7.5 5.5" stroke="${color}" stroke-width="2" stroke-linecap="round"/></svg>`,
+    knee:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 3v7.5L5.5 15c-1 1.3-1 3 .3 4s3 .6 3.8-.6L12 15l2.4 3.4c.8 1.2 2.5 1.6 3.8.6s1.3-2.7.3-4L15 10.5V3" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    wrist:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="7" y="9" width="10" height="8" rx="2.5" stroke="${color}" stroke-width="2"/><path d="M9 9V6a3 3 0 0 1 6 0v3" stroke="${color}" stroke-width="2" stroke-linecap="round"/></svg>`,
+    back:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+  };
+  return icons[name]||'';
+}
+
+/* ===================== RENDER ===================== */
+
+function render(){
+  const app = document.getElementById('app');
+  const scr = state.ui.screen;
+  if(scr==='onboarding') app.innerHTML = screenOnboarding();
+  else if(scr==='selector') app.innerHTML = screenSelector();
+  else if(scr==='joint') app.innerHTML = screenJoint(state.ui.joint);
+  else if(scr==='intake') app.innerHTML = screenIntake(state.ui.joint);
+  else if(scr==='session') app.innerHTML = screenSession(state.ui.joint);
+  else if(scr==='evolucao') app.innerHTML = screenEvolucao(state.ui.joint);
+  else if(scr==='settings') app.innerHTML = screenSettings();
+  else app.innerHTML = screenSelector();
+  wireEvents();
+}
+
+function screenOnboarding(){
+  return `
+  <div class="topbar">
+    <span class="sectlabel" style="color:var(--accent)">Protocolo Multi-Articular</span>
+    <h1>Bem-vindo</h1>
+    <p class="muted">Uso pessoal — acompanhamento de reabilitação de Ombro, Joelho e Punho. Guardado só neste aparelho.</p>
+  </div>
+  <div class="content">
+    <div class="card">
+      <label for="f-nome">Como posso te chamar?</label>
+      <input type="text" id="f-nome" placeholder="Seu nome">
+    </div>
+    <div class="card">
+      <label for="f-key">Chave da API do Gemini</label>
+      <p class="muted" style="margin:0">Usada só no seu aparelho para analisar laudos e montar os planos de exercício. Pode colar depois também, em Ajustes.</p>
+      <input type="password" id="f-key" placeholder="AIza...">
+    </div>
+  </div>
+  <div class="sticky">
+    <button class="btn" id="btn-onboard-ok">Começar</button>
+  </div>`;
+}
+
+function screenSelector(){
+  const cards = Object.keys(JOINTS).map(key=>{
+    const j = state.joints[key];
+    const sub = j.status==='sem_plano' ? 'Sem plano ativo' :
+      j.status==='formado' ? 'Fortalecimento · ativo' :
+      `Fisioterapia · Ciclo ${j.cycles.length}`;
+    return `
+    <a href="#" data-nav="joint" data-joint="${key}" class="card" style="gap:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="joint-icon">${svgIcon(JOINTS[key].icon)}</div>
+        <span class="badge badge-green">Disponível</span>
+      </div>
+      <div>
+        <div style="font-size:15px;font-weight:700">${JOINTS[key].label}</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:2px">${esc(sub)}</div>
+      </div>
+    </a>`;
+  }).join('');
+  const locked = LOCKED_JOINTS.map(name=>`
+    <div class="card" style="gap:10px;background:var(--locked);opacity:.8">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="joint-icon" style="background:#E1E6E8"></div>
+        <span class="badge badge-grey">Em breve</span>
+      </div>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:var(--locked-text)">${name}</div>
+        <div style="font-size:12.5px;color:var(--muted2);margin-top:2px">Catalogação em andamento</div>
+      </div>
+    </div>`).join('');
+  return `
+  <div class="topbar">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span class="sectlabel" style="color:var(--accent)">Protocolo Multi-Articular</span>
+      <button class="btn-ghost" data-nav="settings" style="padding:6px 10px">Ajustes</button>
+    </div>
+    <h1>${state.profile?.nome ? 'Olá, '+esc(state.profile.nome)+'.' : 'Escolha a articulação'}</h1>
+    <p class="muted">Ombro, Joelho e Punho já estão liberados.</p>
+  </div>
+  <div class="content" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    ${cards}${locked}
+  </div>`;
+}
+
+function screenJoint(jointKey){
+  const j = state.joints[jointKey];
+  const label = JOINTS[jointKey].label;
+  const sem = computeSemaforo(j);
+  const c = currentCycle(j);
+  const doneCount = c ? c.sessoes.filter(s=>s.concluida).length : 0;
+  const hist = painHistory(j);
+  const maxHist = Math.max(1, ...hist);
+  const barsHtml = hist.length ? hist.map(v=>`<div style="height:${Math.max(12,(v/maxHist)*100)}%"></div>`).join('') : '<span class="muted">Sem sessões registradas ainda.</span>';
+
+  // banner dor do dia seguinte pendente
+  let banner='';
+  if(c){
+    const lastDone = [...c.sessoes].reverse().find(s=>s.concluida);
+    if(lastDone && lastDone.dorDiaSeguinte==null){
+      banner = `
+      <div class="card" style="border-color:var(--accent)">
+        <span class="sectlabel">Antes de continuar</span>
+        <div style="font-size:13.5px">Como ficou a dor no dia seguinte da última sessão?</div>
+        <div class="pillrow" id="painday-row">
+          ${[0,1,2,3,4,5,6,7,8,9,10].map(n=>`<button type="button" class="pain-btn" data-painday="${n}">${n}</button>`).join('')}
+        </div>
+      </div>`;
+    }
+  }
+
+  let resumoCard = '';
+  if(j.status==='sem_plano'){
+    resumoCard = `
+    <div class="card">
+      <span class="sectlabel">Resumo</span>
+      <div style="font-size:15px;font-weight:700">Nenhuma avaliação ainda</div>
+      <p class="muted" style="margin:0">Envie um laudo ou descreva o que você sente pra montar o primeiro plano.</p>
+      <button class="btn" data-nav="intake" data-joint="${jointKey}">Nova avaliação</button>
+    </div>`;
+  } else {
+    resumoCard = `
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span class="sectlabel">Resumo</span>
+        <span class="badge badge-${sem.cls}"><svg width="9" height="9" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor"/></svg>Semáforo: ${sem.label}</span>
+      </div>
+      <div style="font-size:15px;font-weight:700">Fisioterapia · Fase ${j.faseAtual} — ${FASES[j.faseAtual-1].nome}</div>
+      <div style="font-size:13px;color:var(--muted)">${j.status==='formado' ? 'Trilha concluída — Fortalecimento ativo' : `Ciclo ${j.cycles.length} — sessão ${doneCount} de ${SESSOES_POR_CICLO}`}</div>
+      ${j.status!=='formado' ? `<div class="progress"><div style="width:${(doneCount/SESSOES_POR_CICLO)*100}%"></div></div>` : ''}
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+        <span style="font-size:12px;color:var(--muted)">Tendência de dor (últimas sessões)</span>
+        <div class="bars">${barsHtml}</div>
+      </div>
+    </div>`;
+  }
+
+  const trilhaFisio = j.status==='sem_plano' ? '' : `
+    <div class="card" style="border-color:var(--accent)">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:15px;font-weight:700">Fisioterapia</span>
+        <span class="badge badge-green">Ativa</span>
+      </div>
+      <p class="muted" style="margin:0">${esc(j.intake?.lesao_catalogada||'')} · Ciclo ${j.cycles.length}, sessão ${doneCount} de ${SESSOES_POR_CICLO}.</p>
+      <button class="btn" data-nav="session" data-joint="${jointKey}">Sessão de hoje</button>
+    </div>`;
+
+  return `
+  <div class="topbar">
+    <button class="back" data-nav="selector">${svgIcon('back')} Articulações</button>
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <h1>${label}</h1>
+      <a href="#" data-nav="intake" data-joint="${jointKey}" style="font-size:12.5px;font-weight:600;color:var(--accent)">Nova avaliação</a>
+    </div>
+  </div>
+  <div class="content">
+    ${banner}
+    ${resumoCard}
+    <div><span class="sectlabel">Trilhas</span></div>
+    ${trilhaFisio}
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:15px;font-weight:700">Fortalecimento e manutenção</span>
+        <span class="badge badge-grey">${j.status==='formado'?'Ativa':'Após alta'}</span>
+      </div>
+      <p class="muted" style="margin:0">Trilha vitalícia, estilo musculação — libera quando a Fisioterapia encerrar sem dor relevante. Conteúdo entra numa próxima etapa.</p>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:15px;font-weight:700">Alongamento</span>
+        <span class="badge badge-grey">Em breve</span>
+      </div>
+      <p class="muted" style="margin:0">Biblioteca de mobilidade/alongamento independente do ciclo — entra numa próxima etapa, quando a planilha de 150 exercícios for catalogada em detalhe.</p>
+    </div>
+    ${j.cycles.length ? `<a href="#" data-nav="evolucao" data-joint="${jointKey}" style="align-self:center;font-size:13px;font-weight:600;color:var(--accent);padding:4px 0 8px">Ver evolução completa →</a>` : ''}
+  </div>`;
+}
+
+function screenIntake(jointKey){
+  const label = JOINTS[jointKey].label;
+  return `
+  <div class="topbar">
+    <button class="back" data-nav="joint" data-joint="${jointKey}">${svgIcon('back')} ${label}</button>
+    <h1>Nova avaliação</h1>
+    <p class="muted">Com um laudo, o plano sai mais direcionado. Sem laudo, descreva o que você sente.</p>
+  </div>
+  <div class="content" id="intake-content">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <span class="sectlabel">Enviar laudo</span>
+      <div class="dropzone" id="dropzone">
+        <div class="joint-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L7 9m5-5l5 5" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <div style="font-size:13.5px;font-weight:600" id="file-label">Raio-x, ressonância ou laudo de fisioterapia</div>
+        <div class="muted" style="font-size:12px" id="file-sub">Imagem (JPG/PNG) ou PDF</div>
+        <label class="btn-outline" style="display:inline-block;width:auto;padding:9px 18px;cursor:pointer">Escolher arquivo<input type="file" id="f-laudo" accept="image/*,application/pdf" style="display:none"></label>
+      </div>
+    </div>
+    <div class="divider"><div></div><span class="muted" style="font-size:12px;font-weight:600">ou</span><div></div></div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <span class="sectlabel">Não tenho laudo</span>
+      <label for="f-desc">Descreva o que você sente</label>
+      <textarea id="f-desc" rows="4" placeholder="Ex.: quando alongo o braço acima da cabeça, sinto dor na frente do ombro..."></textarea>
+    </div>
+    <div id="intake-error"></div>
+  </div>
+  <div class="sticky">
+    <button class="btn" id="btn-analisar">Analisar e montar plano</button>
+  </div>`;
+}
+
+function screenSession(jointKey){
+  const j = state.joints[jointKey];
+  const c = currentCycle(j);
+  if(!c) return screenJoint(jointKey);
+  let s = currentSession(c);
+  if(!s){
+    return `
+    <div class="topbar"><button class="back" data-nav="joint" data-joint="${jointKey}">${svgIcon('back')} ${JOINTS[jointKey].label}</button><h1>Ciclo concluído</h1></div>
+    <div class="content"><div class="card"><p class="muted">Todas as ${SESSOES_POR_CICLO} sessões deste ciclo foram concluídas. Vamos pra reavaliação.</p>
+    <button class="btn" data-nav="evolucao" data-joint="${jointKey}">Ver reavaliação</button></div></div>`;
+  }
+  const idx = c.sessoes.indexOf(s);
+  const rows = s.exercicios.map((ex,i)=>{
+    const g = ex.gif ? GIF_CATALOG.find(x=>x.filename===ex.gif) : null;
+    return `
+    <div class="card" data-ex-idx="${i}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="font-size:14.5px;font-weight:700">${i+1}. ${esc(ex.nome)}</div>
+        <span class="badge badge-grey" style="flex:none">${esc(ex.series)}x${esc(ex.repeticoes)}</span>
+      </div>
+      ${g ? `<div class="gifwrap"><img src="./gifs/${g.filename}" alt="${esc(ex.nome)}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=\\'muted\\' style=\\'font-size:12px;padding:8px;text-align:center\\'>GIF não encontrado — confira a pasta /gifs</span>'"></div>`
+        : `<div class="gifwrap"><span class="muted" style="font-size:12px;padding:8px;text-align:center">Sem demonstração em GIF pra este exercício</span></div>`}
+      <div>
+        <span class="sectlabel">Dor nesta série (0-10)</span>
+        <div class="pillrow" style="margin-top:6px">
+          ${[0,1,2,3,4,5,6,7,8,9,10].map(n=>`<button type="button" class="pain-btn${ex.dor===n?' active':''}" data-pain-ex="${i}" data-pain-val="${n}">${n}</button>`).join('')}
+        </div>
+      </div>
+      <input type="text" placeholder="Observação (opcional)" value="${esc(ex.nota||'')}" data-nota-ex="${i}">
+    </div>`;
+  }).join('');
+  return `
+  <div class="topbar">
+    <button class="back" data-nav="joint" data-joint="${jointKey}">${svgIcon('back')} ${JOINTS[jointKey].label}</button>
+    <h1>Sessão ${idx+1} de ${SESSOES_POR_CICLO}</h1>
+    <p class="muted">Ciclo ${c.numero} · Fase ${j.faseAtual} — ${FASES[j.faseAtual-1].nome}</p>
+  </div>
+  <div class="content">${rows}</div>
+  <div class="sticky"><button class="btn" id="btn-concluir-sessao">Concluir sessão</button></div>`;
+}
+
+function screenEvolucao(jointKey){
+  const j = state.joints[jointKey];
+  const label = JOINTS[jointKey].label;
+  const c = currentCycle(j);
+  const allDone = c ? c.sessoes.every(s=>s.concluida) && c.sessoes.length===SESSOES_POR_CICLO : false;
+  let reaval = '';
+  if(allDone && c.status!=='fechado'){
+    reaval = `
+    <div class="card" style="border-color:var(--accent)">
+      <span class="sectlabel">Reavaliação do ciclo</span>
+      <p class="muted" style="margin:0">Ciclo ${c.numero} concluído. Como você está agora?</p>
+      <label>Dor média no dia a dia (0-10)</label>
+      <input type="number" id="f-reaval-dor" min="0" max="10" value="2">
+      <label style="margin-top:4px"><input type="checkbox" id="f-reaval-ok"> Consigo fazer os movimentos do dia a dia sem dor relevante</label>
+      <button class="btn" id="btn-reaval" style="margin-top:6px">Enviar reavaliação</button>
+      <div id="reaval-error"></div>
+    </div>`;
+  }
+  const ciclos = j.cycles.map(cy=>{
+    const done = cy.sessoes.filter(s=>s.concluida).length;
+    return `<div class="card">
+      <div style="display:flex;justify-content:space-between"><span style="font-weight:700;font-size:14px">Ciclo ${cy.numero}</span><span class="badge badge-grey">${cy.status==='fechado'?'Concluído':'Em andamento'}</span></div>
+      <div class="muted">${done} de ${SESSOES_POR_CICLO} sessões</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${cy.sessoes.filter(s=>s.concluida).map((s,i)=>{
+          const vals=s.exercicios.map(e=>e.dor).filter(v=>v!=null);
+          const avg = vals.length? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : '-';
+          return `<span class="badge badge-grey">S${i+1}: dor ${avg}</span>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+  return `
+  <div class="topbar"><button class="back" data-nav="joint" data-joint="${jointKey}">${svgIcon('back')} ${label}</button><h1>Evolução</h1></div>
+  <div class="content">
+    ${reaval}
+    ${j.status==='formado' ? `<div class="card" style="border-color:var(--green)"><span class="badge badge-green">Formatura</span><p class="muted" style="margin:0">Trilha de Fisioterapia concluída — migrado para Fortalecimento e manutenção.</p></div>` : ''}
+    ${ciclos || '<p class="muted">Sem ciclos ainda.</p>'}
+  </div>`;
+}
+
+function screenSettings(){
+  return `
+  <div class="topbar"><button class="back" data-nav="selector">${svgIcon('back')} Articulações</button><h1>Ajustes</h1></div>
+  <div class="content">
+    <div class="card">
+      <label for="s-nome">Nome</label>
+      <input type="text" id="s-nome" value="${esc(state.profile?.nome||'')}">
+    </div>
+    <div class="card">
+      <label for="s-key">Chave da API do Gemini</label>
+      <input type="password" id="s-key" value="${esc(state.geminiKey||'')}" placeholder="AIza...">
+      <p class="muted" style="margin:0">Fica salva só neste aparelho (localStorage do navegador).</p>
+    </div>
+    <button class="btn" id="btn-save-settings">Salvar</button>
+    <div class="card">
+      <span class="sectlabel">Backup</span>
+      <p class="muted" style="margin:0">Os dados ficam só neste aparelho. Exporte de vez em quando pra não perder o histórico.</p>
+      <button class="btn-outline" id="btn-export">Exportar backup (.json)</button>
+      <label class="btn-outline" style="display:block;text-align:center;cursor:pointer">Importar backup<input type="file" id="f-import" accept="application/json" style="display:none"></label>
+    </div>
+  </div>`;
+}
+
+/* ===================== EVENTOS ===================== */
+
+function wireEvents(){
+  document.querySelectorAll('[data-nav]').forEach(el=>{
+    el.addEventListener('click', e=>{ e.preventDefault(); nav(el.dataset.nav, el.dataset.joint); });
+  });
+
+  // onboarding
+  const btnOnboard = document.getElementById('btn-onboard-ok');
+  if(btnOnboard) btnOnboard.addEventListener('click', ()=>{
+    const nome = document.getElementById('f-nome').value.trim();
+    const key = document.getElementById('f-key').value.trim();
+    state.profile = { nome: nome||'você', criadoEm: new Date().toISOString() };
+    state.geminiKey = key;
+    saveState();
+    nav('selector');
+  });
+
+  // dor do dia seguinte
+  document.querySelectorAll('[data-painday]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const j = state.joints[state.ui.joint];
+      const c = currentCycle(j);
+      const lastDone = [...c.sessoes].reverse().find(s=>s.concluida);
+      lastDone.dorDiaSeguinte = Number(btn.dataset.painday);
+      saveState(); render();
+      showToast('Registrado. Obrigado!');
+    });
+  });
+
+  // intake: file preview
+  const fLaudo = document.getElementById('f-laudo');
+  if(fLaudo) fLaudo.addEventListener('change', ()=>{
+    if(fLaudo.files[0]){
+      document.getElementById('file-label').textContent = fLaudo.files[0].name;
+      document.getElementById('file-sub').textContent = 'Arquivo selecionado — toque em "Analisar e montar plano"';
+    }
+  });
+
+  const btnAnalisar = document.getElementById('btn-analisar');
+  if(btnAnalisar) btnAnalisar.addEventListener('click', onAnalisar);
+
+  // session pain buttons
+  document.querySelectorAll('[data-pain-ex]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const j = state.joints[state.ui.joint];
+      const s = currentSession(currentCycle(j));
+      const idx = Number(btn.dataset.painEx);
+      s.exercicios[idx].dor = Number(btn.dataset.painVal);
+      saveState(); render();
+    });
+  });
+  document.querySelectorAll('[data-nota-ex]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const j = state.joints[state.ui.joint];
+      const s = currentSession(currentCycle(j));
+      s.exercicios[Number(inp.dataset.notaEx)].nota = inp.value;
+      saveState();
+    });
+  });
+  const btnConcluir = document.getElementById('btn-concluir-sessao');
+  if(btnConcluir) btnConcluir.addEventListener('click', ()=>{
+    const j = state.joints[state.ui.joint];
+    const s = currentSession(currentCycle(j));
+    s.concluida = true;
+    s.dataISO = new Date().toISOString();
+    saveState();
+    nav('joint', state.ui.joint);
+    showToast('Sessão concluída!');
+  });
+
+  const btnReaval = document.getElementById('btn-reaval');
+  if(btnReaval) btnReaval.addEventListener('click', onReavaliacao);
+
+  // settings
+  const btnSaveSettings = document.getElementById('btn-save-settings');
+  if(btnSaveSettings) btnSaveSettings.addEventListener('click', ()=>{
+    state.profile = state.profile||{};
+    state.profile.nome = document.getElementById('s-nome').value.trim()||'você';
+    state.geminiKey = document.getElementById('s-key').value.trim();
+    saveState();
+    showToast('Salvo.');
+  });
+  const btnExport = document.getElementById('btn-export');
+  if(btnExport) btnExport.addEventListener('click', ()=>{
+    const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `protocolo-multi-articular-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+  });
+  const fImport = document.getElementById('f-import');
+  if(fImport) fImport.addEventListener('change', ()=>{
+    const file = fImport.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const imported = JSON.parse(reader.result);
+        state = Object.assign(defaultState(), imported);
+        saveState(); nav('selector');
+        showToast('Backup importado.');
+      }catch(e){ showToast('Arquivo inválido.'); }
+    };
+    reader.readAsText(file);
+  });
+}
+
+async function onAnalisar(){
+  const jointKey = state.ui.joint;
+  const file = document.getElementById('f-laudo').files[0];
+  const desc = document.getElementById('f-desc').value.trim();
+  const errBox = document.getElementById('intake-error');
+  errBox.innerHTML = '';
+  if(!file && !desc){
+    errBox.innerHTML = `<div class="err">Envie um laudo ou descreva o que você sente.</div>`;
+    return;
+  }
+  if(!state.geminiKey){
+    errBox.innerHTML = `<div class="err">Cadastre sua chave da API do Gemini em Ajustes antes de analisar.</div>`;
+    return;
+  }
+  const btn = document.getElementById('btn-analisar');
+  btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Analisando...`;
+  try{
+    const parts = [{ text: buildIntakePrompt(jointKey, file? '' : desc) }];
+    if(file){
+      const b64 = await fileToBase64(file);
+      parts.push({ inlineData: { mimeType: file.type || 'application/pdf', data: b64 } });
+    }
+    const raw = await callGemini(state.geminiKey, parts);
+    const parsed = extractJson(raw);
+    if(!parsed.exercicios || !Array.isArray(parsed.exercicios) || !parsed.exercicios.length){
+      throw new Error('Resposta da IA não trouxe exercícios válidos.');
+    }
+    const exercicios = parsed.exercicios.slice(0,8).map(e=>({
+      nome: e.nome||'Exercício', series: e.series||'2-3', repeticoes: e.repeticoes||'10-15',
+      gif: (matchGif(e.nome||'')||{}).filename || null
+    }));
+    const j = state.joints[jointKey];
+    j.intake = { diagnostico_resumo: parsed.diagnostico_resumo||'', lesao_catalogada: parsed.lesao_catalogada||'', observacao_seguranca: parsed.observacao_seguranca||'', fonte: file?'laudo':'descricao', dataISO: new Date().toISOString() };
+    j.status = 'ativo';
+    j.faseAtual = 1;
+    j.cycles.push({ numero: j.cycles.length+1, status:'aberto', sessoes: Array.from({length:SESSOES_POR_CICLO},()=>({ concluida:false, exercicios: exercicios.map(e=>({...e, dor:null, nota:''})), dorDiaSeguinte:null, dataISO:null })) });
+    saveState();
+    nav('joint', jointKey);
+    if(parsed.observacao_seguranca) showToast('⚠ ' + parsed.observacao_seguranca);
+    else showToast('Plano montado!');
+  }catch(err){
+    console.error(err);
+    errBox.innerHTML = `<div class="err">${esc(err.message||String(err))}</div>`;
+  }finally{
+    btn.disabled = false; btn.textContent = 'Analisar e montar plano';
+  }
+}
+
+async function onReavaliacao(){
+  const jointKey = state.ui.joint;
+  const j = state.joints[jointKey];
+  const c = currentCycle(j);
+  const dor = Number(document.getElementById('f-reaval-dor').value);
+  const ok = document.getElementById('f-reaval-ok').checked;
+  const errBox = document.getElementById('reaval-error');
+  errBox.innerHTML = '';
+  c.status = 'fechado';
+  if(dor<=2 && ok){
+    j.status = 'formado';
+    saveState(); render();
+    showToast('Formatura! Migrado para Fortalecimento e manutenção.');
+    return;
+  }
+  if(!state.geminiKey){
+    // fallback sem IA: repete o mesmo conjunto de exercícios do ciclo anterior
+    const prevEx = c.sessoes[0].exercicios.map(e=>({nome:e.nome, series:e.series, repeticoes:e.repeticoes}));
+    startNextCycle(j, prevEx);
+    return;
+  }
+  const btn = document.getElementById('btn-reaval');
+  btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Gerando próximo ciclo...`;
+  try{
+    const raw = await callGemini(state.geminiKey, [{text: buildNextCycleraPrompt(jointKey, j)}]);
+    const parsed = extractJson(raw);
+    const exercicios = (parsed.exercicios||[]).slice(0,8).map(e=>({nome:e.nome||'Exercício', series:e.series||'2-3', repeticoes:e.repeticoes||'10-15'}));
+    startNextCycle(j, exercicios.length?exercicios:c.sessoes[0].exercicios);
+  }catch(err){
+    console.error(err);
+    errBox.innerHTML = `<div class="err">${esc(err.message||String(err))} — usando o mesmo conjunto de exercícios do ciclo anterior.</div>`;
+    startNextCycle(j, c.sessoes[0].exercicios.map(e=>({nome:e.nome, series:e.series, repeticoes:e.repeticoes})));
+  }
+}
+
+function startNextCycle(j, exBase){
+  j.faseAtual = Math.min(j.faseAtual+1, 4);
+  const exercicios = exBase.map(e=>({ nome:e.nome, series:e.series, repeticoes:e.repeticoes, gif:(matchGif(e.nome)||{}).filename||null }));
+  j.cycles.push({ numero: j.cycles.length+1, status:'aberto', sessoes: Array.from({length:SESSOES_POR_CICLO},()=>({ concluida:false, exercicios: exercicios.map(e=>({...e, dor:null, nota:''})), dorDiaSeguinte:null, dataISO:null })) });
+  saveState();
+  nav('joint', state.ui.joint);
+  showToast('Novo ciclo montado!');
+}
+
+/* ===================== BOOT ===================== */
+if(state.profile && state.ui.screen==='onboarding') state.ui.screen='selector';
+render();
+</script>
+</body>
+</html>
