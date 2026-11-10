@@ -390,11 +390,19 @@ ${exemplo.exercicios.map(e=>`- ${e.nome} — ${e.series} séries x ${e.repeticoe
 
 Gere exatamente 6 exercícios apropriados para a Fase 1 (proteger/acalmar) de um ciclo de reabilitação de 10 sessões, no mesmo estilo (nome do exercício em português, séries como faixa "2-3" ou "3-4", repetições como faixa "10-15" — ou duração em segundos quando o exercício for isométrico/alongamento).
 
+Além disso, antes de chegar nos exercícios, a pessoa quer entender a avaliação por trás do plano. Escreva em português simples, tom claro e direto (sem jargão desnecessário), sempre deixando explícito que isso é uma leitura de apoio e não substitui a avaliação presencial de um profissional:
+- o que o laudo/descrição indica sobre o quadro atual;
+- o que será feito nesta primeira fase (Fase 1 — Proteger/acalmar) e por quê, conectando com o que foi identificado;
+- uma projeção de como o tratamento tende a evoluir pelas próximas fases (Fase 2 Restaurar capacidade → Fase 3 Integrar função → Fase 4 Retornar e manter) até a remissão, deixando claro que é uma estimativa geral e que o ritmo real depende da resposta da pessoa, registrada sessão a sessão.
+
 Responda SOMENTE com um JSON válido, sem markdown e sem texto fora do JSON, neste formato exato:
 {
   "diagnostico_resumo": "frase curta e simples em português explicando o que foi identificado",
   "lesao_catalogada": "nome exato de uma lesão da lista acima, OU um nome novo curto se nada combinar bem",
   "observacao_seguranca": "alerta curto se houver sinal que mereça avaliação presencial urgente, ou string vazia se não houver",
+  "avaliacao_laudo": "parágrafo (3-5 frases) explicando o que o laudo/descrição indica sobre o quadro atual",
+  "plano_fase_atual": "parágrafo (3-5 frases) explicando o que será feito nesta Fase 1 e por quê",
+  "projecao_tratamento": "parágrafo (3-6 frases) com a projeção de evolução pelas fases seguintes até a remissão, deixando claro que é uma estimativa",
   "exercicios": [
     {"nome":"...", "series":"2-3", "repeticoes":"10-15"}
   ]
@@ -443,6 +451,7 @@ function render(){
   else if(scr==='selector') app.innerHTML = screenSelector();
   else if(scr==='joint') app.innerHTML = screenJoint(state.ui.joint);
   else if(scr==='intake') app.innerHTML = screenIntake(state.ui.joint);
+  else if(scr==='avaliacao-laudo') app.innerHTML = screenAvaliacaoLaudo(state.ui.joint);
   else if(scr==='session') app.innerHTML = screenSession(state.ui.joint);
   else if(scr==='evolucao') app.innerHTML = screenEvolucao(state.ui.joint);
   else if(scr==='settings') app.innerHTML = screenSettings();
@@ -575,7 +584,10 @@ function screenJoint(jointKey){
         <span class="badge badge-green">Ativa</span>
       </div>
       <p class="muted" style="margin:0">${esc(j.intake?.lesao_catalogada||'')} · Ciclo ${j.cycles.length}, sessão ${doneCount} de ${SESSOES_POR_CICLO}.</p>
-      <button class="btn" data-nav="session" data-joint="${jointKey}">Sessão de hoje</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn" data-nav="session" data-joint="${jointKey}" style="flex:1">Sessão de hoje</button>
+        <button class="btn-ghost btn-sm" data-nav="avaliacao-laudo" data-joint="${jointKey}">Ver avaliação</button>
+      </div>
     </div>`;
 
   return `
@@ -639,6 +651,42 @@ function screenIntake(jointKey){
   </div>
   <div class="sticky">
     <button class="btn" id="btn-analisar">Analisar e montar plano</button>
+  </div>`;
+}
+
+function screenAvaliacaoLaudo(jointKey){
+  const j = state.joints[jointKey];
+  const label = JOINTS[jointKey].label;
+  const it = j.intake||{};
+  return `
+  <div class="topbar">
+    <button class="back" data-nav="joint" data-joint="${jointKey}">${svgIcon('back')} ${label}</button>
+    <h1>Avaliação do laudo</h1>
+    <p class="muted">Leitura de apoio feita por IA — não substitui avaliação presencial de um profissional.</p>
+  </div>
+  <div class="content">
+    <div class="card">
+      <span class="sectlabel">Diagnóstico identificado</span>
+      <div style="font-size:15px;font-weight:700">${esc(it.lesao_catalogada||'')}</div>
+      <p style="margin:0;font-size:13.5px;line-height:1.5">${esc(it.diagnostico_resumo||'')}</p>
+    </div>
+    ${it.observacao_seguranca ? `<div class="err" style="font-size:13px">⚠ ${esc(it.observacao_seguranca)}</div>` : ''}
+    <div class="card">
+      <span class="sectlabel">O que o laudo indica</span>
+      <p style="margin:0;font-size:13.5px;line-height:1.55">${esc(it.avaliacao_laudo||'Sem detalhe disponível.')}</p>
+    </div>
+    <div class="card" style="border-color:var(--accent)">
+      <span class="sectlabel">O que será feito agora (Fase 1 — Proteger/acalmar) e por quê</span>
+      <p style="margin:0;font-size:13.5px;line-height:1.55">${esc(it.plano_fase_atual||'Sem detalhe disponível.')}</p>
+    </div>
+    <div class="card">
+      <span class="sectlabel">Projeção até a remissão</span>
+      <p style="margin:0;font-size:13.5px;line-height:1.55">${esc(it.projecao_tratamento||'Sem detalhe disponível.')}</p>
+      <p class="muted" style="margin:0;font-size:12px">Estimativa geral — o ritmo real depende da sua resposta, acompanhada sessão a sessão e reavaliada a cada ciclo.</p>
+    </div>
+  </div>
+  <div class="sticky">
+    <button class="btn" data-nav="session" data-joint="${jointKey}">Ver exercícios de hoje</button>
   </div>`;
 }
 
@@ -886,14 +934,18 @@ async function onAnalisar(){
       gif: (matchGif(e.nome||'')||{}).filename || null
     }));
     const j = state.joints[jointKey];
-    j.intake = { diagnostico_resumo: parsed.diagnostico_resumo||'', lesao_catalogada: parsed.lesao_catalogada||'', observacao_seguranca: parsed.observacao_seguranca||'', fonte: file?'laudo':'descricao', dataISO: new Date().toISOString() };
+    j.intake = {
+      diagnostico_resumo: parsed.diagnostico_resumo||'', lesao_catalogada: parsed.lesao_catalogada||'',
+      observacao_seguranca: parsed.observacao_seguranca||'',
+      avaliacao_laudo: parsed.avaliacao_laudo||'', plano_fase_atual: parsed.plano_fase_atual||'', projecao_tratamento: parsed.projecao_tratamento||'',
+      fonte: file?'laudo':'descricao', dataISO: new Date().toISOString()
+    };
     j.status = 'ativo';
     j.faseAtual = 1;
     j.cycles.push({ numero: j.cycles.length+1, status:'aberto', sessoes: Array.from({length:SESSOES_POR_CICLO},()=>({ concluida:false, exercicios: exercicios.map(e=>({...e, dor:null, nota:''})), dorDiaSeguinte:null, dataISO:null })) });
     saveState();
-    nav('joint', jointKey);
+    nav('avaliacao-laudo', jointKey);
     if(parsed.observacao_seguranca) showToast('⚠ ' + parsed.observacao_seguranca);
-    else showToast('Plano montado!');
   }catch(err){
     console.error(err);
     errBox.innerHTML = `<div class="err">${esc(err.message||String(err))}</div>`;
