@@ -656,6 +656,8 @@ function screenIntake(jointKey){
       <textarea id="f-desc" rows="4" placeholder="Ex.: quando alongo o braço acima da cabeça, sinto dor na frente do ombro..."></textarea>
     </div>
     <div id="intake-error"></div>
+    <button type="button" class="btn-ghost btn-sm" id="btn-exemplo" style="align-self:center">Usar plano de exemplo (sem IA)</button>
+    <p class="muted" style="text-align:center;margin:0;font-size:11.5px">Útil se o Gemini estiver fora do ar — carrega um plano real da planilha, só pra testar a tela de sessão e os GIFs.</p>
   </div>
   <div class="sticky">
     <button class="btn" id="btn-analisar">Analisar e montar plano</button>
@@ -673,6 +675,7 @@ function screenAvaliacaoLaudo(jointKey){
     <p class="muted">Leitura de apoio feita por IA — não substitui avaliação presencial de um profissional.</p>
   </div>
   <div class="content">
+    ${it.fonte==='exemplo' ? `<div class="badge badge-yellow" style="align-self:flex-start">Plano de exemplo — não veio da análise do seu laudo</div>` : ''}
     <div class="card">
       <span class="sectlabel">Diagnóstico identificado</span>
       <div style="font-size:15px;font-weight:700">${esc(it.lesao_catalogada||'')}</div>
@@ -844,6 +847,8 @@ function wireEvents(){
 
   const btnAnalisar = document.getElementById('btn-analisar');
   if(btnAnalisar) btnAnalisar.addEventListener('click', onAnalisar);
+  const btnExemplo = document.getElementById('btn-exemplo');
+  if(btnExemplo) btnExemplo.addEventListener('click', onUsarExemplo);
 
   // session pain buttons
   document.querySelectorAll('[data-pain-ex]').forEach(btn=>{
@@ -960,6 +965,49 @@ async function onAnalisar(){
   }finally{
     btn.disabled = false; btn.textContent = 'Analisar e montar plano';
   }
+}
+
+function onUsarExemplo(){
+  const jointKey = state.ui.joint;
+  const exemplo = EXEMPLOS[jointKey];
+  const exercicios = exemplo.exercicios.map(e=>({ nome:e.nome, series:e.series, repeticoes:e.repeticoes, gif:(matchGif(e.nome)||{}).filename||null }));
+  const j = state.joints[jointKey];
+  const textosExemplo = {
+    ombro: {
+      diagnostico_resumo: 'Quadro compatível com sobrecarga do ombro, tipo tendinopatia do manguito rotador, sem sinal de ruptura completa.',
+      avaliacao_laudo: 'O laudo/descrição aponta dor na região anterior e lateral do ombro, mais forte em movimentos acima da cabeça, com força preservada mas com desconforto ao resistir — padrão típico de sobrecarga nos tendões do manguito rotador. Não há sinais indicados de ruptura completa, instabilidade franca ou comprometimento neurológico associado.',
+      plano_fase_atual: 'Nesta Fase 1 (Proteger/acalmar), o foco é reduzir a inflamação e a dor sem perder amplitude de movimento. Por isso os exercícios começam com cargas leves (elástico e halteres leves) e trabalham rotação externa/interna e estabilização escapular — fortalecendo o manguito rotador sem sobrecarregar o tendão irritado.',
+      projecao_tratamento: 'Se a dor se mantiver controlada ao longo das 10 sessões deste ciclo, a expectativa é avançar pra Fase 2 (Restaurar capacidade) com cargas progressivamente maiores. Quadros de tendinopatia costumam responder em 2 a 4 ciclos (20-40 sessões) até a dor no dia a dia ficar irrelevante o suficiente pra formatura e migração pra Fortalecimento e manutenção — mas isso varia bastante pessoa a pessoa, e o próprio histórico de dor registrado aqui vai ajustando o ritmo.'
+    },
+    joelho: {
+      diagnostico_resumo: 'Quadro compatível com condromalácia patelar, com dor anterior no joelho ao agachar/descer escadas.',
+      avaliacao_laudo: 'O laudo/descrição indica dor na frente do joelho, geralmente associada a desgaste da cartilagem por trás da patela, piorando ao agachar, descer escadas ou ficar muito tempo sentado com o joelho dobrado. Não há indicação de lesão ligamentar ou meniscal associada.',
+      plano_fase_atual: 'Na Fase 1, o foco é reduzir a dor e começar a ativar o quadríceps sem sobrecarregar a articulação patelofemoral — por isso os exercícios priorizam contração isométrica, elevação de perna estendida e agachamento parcial controlado, evitando ângulos profundos de flexão que costumam doer mais nessa fase.',
+      projecao_tratamento: 'Com boa resposta, o avanço pelas fases seguintes costuma liberar amplitudes maiores de agachamento e cargas progressivas. Condromalácia tende a precisar de alguns ciclos (muitas vezes 3 ou mais) até a dor funcional sumir o suficiente pra formatura — fortalecimento consistente do quadríceps é o que mais pesa nessa evolução.'
+    },
+    punho: {
+      diagnostico_resumo: 'Quadro compatível com tendinite de punho/mão, com dor e inflamação nos tendões da região.',
+      avaliacao_laudo: 'O laudo/descrição aponta dor e sensação de inflamação nos tendões do punho, possivelmente ligada a movimento repetitivo (digitação, uso de mouse, atividades manuais). Não há indicação de compressão nervosa associada nem de lesão estrutural do complexo fibrocartilaginoso.',
+      plano_fase_atual: 'Na Fase 1, o foco é desinflamar e recuperar mobilidade sem forçar os tendões irritados — os exercícios trabalham flexão/extensão e desvios do punho com carga bem leve, além de alongamento, evitando pegadas fortes ou movimentos repetitivos de alta carga nesse estágio.',
+      projecao_tratamento: 'Quadros de tendinite de punho costumam responder relativamente rápido quando a causa repetitiva é ajustada junto (pausas, ergonomia) — muitas vezes 1 a 2 ciclos já trazem melhora significativa, mas isso depende de manter o gatilho (repetição/postura) sob controle fora do app também.'
+    }
+  };
+  const tx = textosExemplo[jointKey] || textosExemplo.ombro;
+  j.intake = {
+    diagnostico_resumo: tx.diagnostico_resumo,
+    lesao_catalogada: exemplo.lesao,
+    observacao_seguranca: '',
+    avaliacao_laudo: tx.avaliacao_laudo,
+    plano_fase_atual: tx.plano_fase_atual,
+    projecao_tratamento: tx.projecao_tratamento,
+    fonte:'exemplo', dataISO:new Date().toISOString()
+  };
+  j.status = 'ativo';
+  j.faseAtual = 1;
+  j.cycles.push({ numero: j.cycles.length+1, status:'aberto', sessoes: Array.from({length:SESSOES_POR_CICLO},()=>({ concluida:false, exercicios: exercicios.map(e=>({...e, dor:null, nota:''})), dorDiaSeguinte:null, dataISO:null })) });
+  saveState();
+  nav('avaliacao-laudo', jointKey);
+  showToast('Plano de exemplo carregado (sem IA).');
 }
 
 async function onReavaliacao(){
