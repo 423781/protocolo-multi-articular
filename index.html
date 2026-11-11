@@ -53,8 +53,8 @@
   .pain-btn{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--border);background:#fff;font-size:13px;font-weight:700;color:var(--text)}
   .pain-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
   .dropzone{border:1.5px dashed #BFCBD1;border-radius:16px;background:#fff;padding:22px 16px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
-  .gifwrap{width:100%;aspect-ratio:1/1;max-height:220px;border-radius:12px;overflow:hidden;background:var(--locked);display:flex;align-items:center;justify-content:center}
-  .gifwrap img{width:100%;height:100%;object-fit:cover}
+  .gifwrap{width:100%;aspect-ratio:4/3;max-height:220px;border-radius:12px;overflow:hidden;background:var(--locked);display:flex;align-items:center;justify-content:center;padding:10px}
+  .gifwrap img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;border-radius:6px}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 18px;border-radius:999px;font-size:13px;z-index:50;max-width:90vw}
   .divider{display:flex;align-items:center;gap:10px}
   .divider>div{flex:1;height:1px;background:var(--border)}
@@ -234,6 +234,23 @@ const EXEMPLOS = {
   ]}
 };
 
+// testes funcionais/ortopédicos padrão por articulação — usados como fallback (plano de exemplo, sem IA)
+// e como base caso a IA não retorne testes válidos
+const TESTES_PADRAO = {
+  ombro: [
+    {nome:"Teste de Neer", instrucao:"Eleve o braço esticado lentamente pela frente do corpo até perto da orelha, sem girar o ombro. Observe se dói e em que altura do movimento a dor aparece."},
+    {nome:"Teste de Hawkins-Kennedy", instrucao:"Levante o braço à frente com o cotovelo dobrado a 90°, depois gire o ombro pra dentro (mão em direção ao chão). Observe se dói na parte da frente/lateral do ombro."}
+  ],
+  joelho: [
+    {nome:"Teste de McMurray", instrucao:"Sentado ou deitado, dobre bem o joelho e gire a perna pra dentro e pra fora lentamente enquanto estende. Observe se há dor, estalo ou travamento na linha da articulação."},
+    {nome:"Teste de compressão patelar", instrucao:"Sentado com o joelho esticado, pressione levemente a patela (rótula) pra baixo contra o fêmur e contraia o quadríceps. Observe se dói na frente do joelho."}
+  ],
+  punho: [
+    {nome:"Teste de Finkelstein", instrucao:"Feche a mão com o polegar dobrado pra dentro, por baixo dos outros dedos, e desvie o punho em direção ao dedo mínimo. Observe se dói no lado do polegar do punho."},
+    {nome:"Teste de Tinel", instrucao:"Com a outra mão, dê batidinhas leves na parte da frente do punho (região do túnel do carpo). Observe se formiga ou dói irradiando pra mão/dedos."}
+  ]
+};
+
 const FASES = [
   {n:1, nome:"Proteger / acalmar", objetivo:"Reduzir dor e proteger a estrutura lesionada."},
   {n:2, nome:"Restaurar capacidade", objetivo:"Recuperar amplitude de movimento e força básica."},
@@ -248,7 +265,7 @@ const SESSOES_POR_CICLO = 10;
 const STORAGE_KEY = 'pma_state_v1';
 
 function emptyJoint(){
-  return { status:'sem_plano', intake:null, faseAtual:1, cycles:[] };
+  return { status:'sem_plano', intake:null, faseAtual:1, cycles:[], testesHistorico:[] };
 }
 function defaultState(){
   return {
@@ -272,9 +289,11 @@ function saveState(){
 
 let state = loadState();
 let toastTimer = null;
+let pendingResetJoint = null; // ui efêmera (não persistida): qual articulação está com a confirmação de "começar tratamento novo" aberta
 
 function nav(screen, joint){
   state.ui = { screen, joint: joint||null };
+  pendingResetJoint = null;
   saveState(); render();
   window.scrollTo(0,0);
 }
@@ -289,7 +308,12 @@ function showToast(msg){
 /* ===================== UTILITÁRIOS ===================== */
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function normalize(s){ return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim(); }
+function normalize(s){
+  let t = String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+  // sinônimos de fisioterapia: "flexão reversa" é o termo usado nos nomes dos GIFs pra extensão
+  t = t.replace(/\bflexao reversa\b/g, 'extensao').replace(/\bagachamento parcial\b/g, 'meio agachamento');
+  return t;
+}
 const STOPWORDS = new Set(['com','de','do','da','em','e','a','o','no','na','ao','cada','lado','pe','pes']);
 
 function matchGif(exerciseName){
@@ -354,6 +378,68 @@ function painHistory(j){
   return out.slice(-7);
 }
 
+function gerarVeredito(j, c, s){
+  const idx = c.sessoes.indexOf(s);
+  const doneInCycle = c.sessoes.filter(x=>x.concluida).length;
+  const vals = s.exercicios.map(e=>e.dor).filter(v=>v!=null);
+  const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+  const maxDor = vals.length ? Math.max(...vals) : null;
+
+  // sessão anterior concluída (nesse ciclo ou no ciclo anterior), pra comparar tendência
+  let anterior = null;
+  const todasConcluidas = [];
+  for(const cy of j.cycles) for(const ss of cy.sessoes) if(ss.concluida && ss!==s) todasConcluidas.push(ss);
+  if(todasConcluidas.length){
+    const prev = todasConcluidas[todasConcluidas.length-1];
+    const pv = prev.exercicios.map(e=>e.dor).filter(v=>v!=null);
+    anterior = pv.length ? pv.reduce((a,b)=>a+b,0)/pv.length : null;
+  }
+
+  const partes = [];
+  partes.push(`Sessão ${idx+1} de ${SESSOES_POR_CICLO} do Ciclo ${c.numero} concluída.`);
+
+  if(avg==null){
+    partes.push('Nenhuma dor foi registrada nos exercícios desta sessão.');
+  } else if(avg<=2){
+    partes.push(`A dor ficou baixa e controlada (média ${avg.toFixed(1)} de 10) — ótimo sinal.`);
+  } else if(avg<=5){
+    partes.push(`A dor ficou moderada nesta sessão (média ${avg.toFixed(1)} de 10). É esperado nesta fase, mas vale manter atenção.`);
+  } else {
+    partes.push(`A dor ficou alta nesta sessão (média ${avg.toFixed(1)} de 10${maxDor!=null?`, com pico de ${maxDor}`:''}). Se isso persistir, considere reduzir a carga ou procurar avaliação presencial.`);
+  }
+
+  if(anterior!=null && avg!=null){
+    const diff = avg - anterior;
+    if(diff<=-1) partes.push(`Isso é uma melhora em relação à sessão anterior (estava em ${anterior.toFixed(1)}).`);
+    else if(diff>=1) partes.push(`A dor piorou um pouco em relação à sessão anterior (estava em ${anterior.toFixed(1)}) — fique de olho na evolução das próximas sessões.`);
+    else partes.push(`Dor estável em relação à sessão anterior (${anterior.toFixed(1)}).`);
+  }
+
+  const notas = s.exercicios.filter(e=>e.nota && e.nota.trim());
+  if(notas.length){
+    const comDorAlta = notas.filter(e=>e.dor!=null && e.dor>=6);
+    if(comDorAlta.length){
+      partes.push(`Você anotou algo sobre ${comDorAlta.map(e=>e.nome).join(', ')}, onde a dor também ficou mais alta: "${comDorAlta.map(e=>e.nota).join('; ')}". Vale observar esse ponto nas próximas sessões.`);
+    } else {
+      partes.push(`Observações registradas: ${notas.map(e=>`${e.nome} — "${e.nota}"`).join('; ')}.`);
+    }
+  }
+
+  if(doneInCycle>=SESSOES_POR_CICLO){
+    partes.push(`Você completou todas as ${SESSOES_POR_CICLO} sessões do Ciclo ${c.numero} — hora da reavaliação pra decidir o próximo passo.`);
+  } else {
+    partes.push(`Faltam ${SESSOES_POR_CICLO-doneInCycle} sessões pra fechar o Ciclo ${c.numero}.`);
+  }
+
+  if(j.intake && j.intake.frequencia_semanal){
+    partes.push(`Lembrete de frequência: ${j.intake.frequencia_semanal}`);
+  }
+
+  partes.push(`Você está na Fase ${j.faseAtual} — ${FASES[j.faseAtual-1].nome}.`);
+
+  return partes.join(' ');
+}
+
 /* ===================== GEMINI ===================== */
 
 async function callGemini(apiKey, parts){
@@ -401,7 +487,10 @@ Gere exatamente 6 exercícios apropriados para a Fase 1 (proteger/acalmar) de um
 Além disso, antes de chegar nos exercícios, a pessoa quer entender a avaliação por trás do plano. Escreva em português simples, tom claro e direto (sem jargão desnecessário), sempre deixando explícito que isso é uma leitura de apoio e não substitui a avaliação presencial de um profissional:
 - o que o laudo/descrição indica sobre o quadro atual;
 - o que será feito nesta primeira fase (Fase 1 — Proteger/acalmar) e por quê, conectando com o que foi identificado;
-- uma projeção de como o tratamento tende a evoluir pelas próximas fases (Fase 2 Restaurar capacidade → Fase 3 Integrar função → Fase 4 Retornar e manter) até a remissão, deixando claro que é uma estimativa geral e que o ritmo real depende da resposta da pessoa, registrada sessão a sessão.
+- uma projeção de como o tratamento tende a evoluir pelas próximas fases (Fase 2 Restaurar capacidade → Fase 3 Integrar função → Fase 4 Retornar e manter) até a remissão, deixando claro que é uma estimativa geral e que o ritmo real depende da resposta da pessoa, registrada sessão a sessão;
+- a frequência semanal recomendada pra essa fase (ex.: "3x por semana, em dias alternados", "todo dia, sessão curta", "dia sim, dia não") — baseada na gravidade indicada e na fase atual.
+
+Além dos exercícios, indique também exatamente 2 testes funcionais/ortopédicos clássicos (do tipo que um médico ou fisioterapeuta usaria numa avaliação clínica — ex.: Teste de Neer, Teste de Hawkins-Kennedy, Teste de McMurray, Teste de Lachman, Teste de Finkelstein, Teste de Tinel, Teste de compressão patelar, etc.) apropriados especificamente pra essa lesão/diagnóstico identificado. Pra cada um, escreva uma instrução curta e clara de como a própria pessoa pode reproduzir o movimento em casa, sozinha, de forma seguro, e o que observar (se dói, em que ponto do movimento, intensidade). A ideia é que a pessoa repita esses mesmos 2 testes a cada sessão, registrando a dor, pra acompanhar a evolução da estrutura testada ao longo do tratamento — então escolha testes que façam sentido repetir sessão a sessão.
 
 Responda SOMENTE com um JSON válido, sem markdown e sem texto fora do JSON, neste formato exato:
 {
@@ -411,6 +500,10 @@ Responda SOMENTE com um JSON válido, sem markdown e sem texto fora do JSON, nes
   "avaliacao_laudo": "parágrafo (3-5 frases) explicando o que o laudo/descrição indica sobre o quadro atual",
   "plano_fase_atual": "parágrafo (3-5 frases) explicando o que será feito nesta Fase 1 e por quê",
   "projecao_tratamento": "parágrafo (3-6 frases) com a projeção de evolução pelas fases seguintes até a remissão, deixando claro que é uma estimativa",
+  "frequencia_semanal": "frase curta com a frequência recomendada e o porquê (ex.: '3x por semana, em dias alternados, pra dar tempo de recuperação entre sessões')",
+  "testes_diagnosticos": [
+    {"nome":"nome clássico do teste ortopédico", "instrucao":"como reproduzir o movimento em casa e o que observar"}
+  ],
   "exercicios": [
     {"nome":"...", "series":"2-3", "repeticoes":"10-15"}
   ]
@@ -461,6 +554,7 @@ function render(){
   else if(scr==='intake') app.innerHTML = screenIntake(state.ui.joint);
   else if(scr==='avaliacao-laudo') app.innerHTML = screenAvaliacaoLaudo(state.ui.joint);
   else if(scr==='session') app.innerHTML = screenSession(state.ui.joint);
+  else if(scr==='veredito') app.innerHTML = screenVeredito(state.ui.joint);
   else if(scr==='evolucao') app.innerHTML = screenEvolucao(state.ui.joint);
   else if(scr==='settings') app.innerHTML = screenSettings();
   else app.innerHTML = screenSelector();
@@ -593,10 +687,20 @@ function screenJoint(jointKey){
       </div>
       <p class="muted" style="margin:0">${esc(j.intake?.lesao_catalogada||'')} · Ciclo ${j.cycles.length}, sessão ${doneCount} de ${SESSOES_POR_CICLO}.</p>
       <div style="display:flex;gap:8px">
-        <button class="btn" data-nav="session" data-joint="${jointKey}" style="flex:1">Sessão de hoje</button>
+        <button class="btn" data-nav="session" data-joint="${jointKey}" style="flex:1">${j.status==='formado' ? 'Ver fortalecimento' : 'Continuar nosso plano'}</button>
         <button class="btn-ghost btn-sm" data-nav="avaliacao-laudo" data-joint="${jointKey}">Ver avaliação</button>
       </div>
-    </div>`;
+    </div>
+    ${pendingResetJoint===jointKey ? `
+    <div class="card" style="border-color:var(--red)">
+      <span class="sectlabel" style="color:var(--red)">Começar tratamento novo?</span>
+      <p class="muted" style="margin:0;font-size:12.5px;line-height:1.5">Isso apaga todo o histórico de ${esc(label)} (ciclos, sessões, testes e avaliação) e começa do zero com uma nova análise. Não pode ser desfeito.</p>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn-outline" style="flex:1" id="btn-cancelar-reset">Cancelar</button>
+        <button class="btn" style="flex:1;background:var(--red)" id="btn-confirmar-reset" data-joint="${jointKey}">Sim, começar do zero</button>
+      </div>
+    </div>` : `
+    <button class="btn-ghost btn-sm" id="btn-pedir-reset" data-joint="${jointKey}">Começar tratamento novo</button>`}`;
 
   return `
   <div class="topbar">
@@ -695,6 +799,10 @@ function screenAvaliacaoLaudo(jointKey){
       <p style="margin:0;font-size:13.5px;line-height:1.55">${esc(it.projecao_tratamento||'Sem detalhe disponível.')}</p>
       <p class="muted" style="margin:0;font-size:12px">Estimativa geral — o ritmo real depende da sua resposta, acompanhada sessão a sessão e reavaliada a cada ciclo.</p>
     </div>
+    ${it.frequencia_semanal ? `<div class="card" style="border-color:var(--accent)">
+      <span class="sectlabel">Frequência de treino recomendada</span>
+      <p style="margin:0;font-size:14px;font-weight:600;line-height:1.5">${esc(it.frequencia_semanal)}</p>
+    </div>` : ''}
   </div>
   <div class="sticky">
     <button class="btn" data-nav="session" data-joint="${jointKey}">Ver exercícios de hoje</button>
@@ -735,11 +843,71 @@ function screenSession(jointKey){
   return `
   <div class="topbar">
     <button class="back" data-nav="joint" data-joint="${jointKey}">${svgIcon('back')} ${JOINTS[jointKey].label}</button>
-    <h1>Sessão ${idx+1} de ${SESSOES_POR_CICLO}</h1>
-    <p class="muted">Ciclo ${c.numero} · Fase ${j.faseAtual} — ${FASES[j.faseAtual-1].nome}</p>
+    <h1>Bem-vindo à sua ${idx+1}ª sessão</h1>
+    <p class="muted">Ciclo ${c.numero} · Sessão ${idx+1} de ${SESSOES_POR_CICLO} · Fase ${j.faseAtual} — ${FASES[j.faseAtual-1].nome}</p>
   </div>
   <div class="content">${rows}</div>
   <div class="sticky"><button class="btn" id="btn-concluir-sessao">Concluir sessão</button></div>`;
+}
+
+function screenVeredito(jointKey){
+  const j = state.joints[jointKey];
+  const label = JOINTS[jointKey].label;
+  const c = currentCycle(j);
+  const doneInCycle = c ? c.sessoes.filter(s=>s.concluida).length : 0;
+  const allDone = c && doneInCycle>=SESSOES_POR_CICLO;
+  const texto = j.ultimoVeredito || '';
+  const testes = j.testesPendentes || [];
+  const testesHtml = testes.map((t,i)=>`
+    <div class="card" data-teste-idx="${i}">
+      <div style="font-size:14px;font-weight:700">${esc(t.nome)}</div>
+      <p class="muted" style="margin:0;font-size:12.5px;line-height:1.5">${esc(t.instrucao)}</p>
+      <div>
+        <span class="sectlabel">Dor ao fazer o teste (0-10)</span>
+        <div class="pillrow" style="margin-top:6px">
+          ${[0,1,2,3,4,5,6,7,8,9,10].map(n=>`<button type="button" class="pain-btn${t.dor===n?' active':''}" data-pain-teste="${i}" data-pain-val="${n}">${n}</button>`).join('')}
+        </div>
+      </div>
+      <input type="text" placeholder="Observação (opcional)" value="${esc(t.nota||'')}" data-nota-teste="${i}">
+    </div>`).join('');
+  return `
+  <div class="topbar"><h1>Sessão concluída</h1><p class="muted">${label}</p></div>
+  <div class="content">
+    <div class="card" style="border-color:var(--accent)">
+      <span class="sectlabel">Como foi</span>
+      <p style="margin:0;font-size:14px;line-height:1.6">${esc(texto)}</p>
+    </div>
+    ${testes.length ? `<p class="sectlabel" style="margin:4px 2px 0">Testes de avaliação — repita os mesmos movimentos a cada sessão pra acompanhar a evolução</p>${testesHtml}` : ''}
+  </div>
+  <div class="sticky">
+    <button class="btn" id="btn-salvar-testes" data-joint="${jointKey}" data-alldone="${allDone?'1':'0'}">${testes.length ? 'Salvar testes e continuar' : (allDone?'Ir pra reavaliação':'Continuar')}</button>
+  </div>`;
+}
+
+function resumoTestes(j){
+  const hist = j.testesHistorico || [];
+  if(!hist.length) return '';
+  const porNome = {};
+  hist.forEach(reg=>{
+    (reg.testes||[]).forEach(t=>{
+      if(t.dor==null) return;
+      porNome[t.nome] = porNome[t.nome] || [];
+      porNome[t.nome].push(t.dor);
+    });
+  });
+  const nomes = Object.keys(porNome);
+  if(!nomes.length) return '';
+  const linhas = nomes.map(nome=>{
+    const vals = porNome[nome];
+    const seq = vals.slice(-6).join(' → ');
+    let tendencia = '';
+    if(vals.length>=2){
+      const diff = vals[vals.length-1] - vals[0];
+      tendencia = diff<=-2 ? ' — boa melhora' : diff>=2 ? ' — piorando, atenção' : ' — estável';
+    }
+    return `<div style="padding:6px 0;border-top:1px solid var(--border,#E5E8EA)"><span style="font-weight:600;font-size:13px">${esc(nome)}:</span> <span style="font-size:13px">${esc(seq)}${tendencia}</span></div>`;
+  }).join('');
+  return `<div class="card"><span class="sectlabel">Progresso nos testes de avaliação</span>${linhas}</div>`;
 }
 
 function screenEvolucao(jointKey){
@@ -762,16 +930,19 @@ function screenEvolucao(jointKey){
   }
   const ciclos = j.cycles.map(cy=>{
     const done = cy.sessoes.filter(s=>s.concluida).length;
+    const sessoesHtml = cy.sessoes.filter(s=>s.concluida).map((s,i)=>{
+      const vals=s.exercicios.map(e=>e.dor).filter(v=>v!=null);
+      const avg = vals.length? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : '-';
+      const texto = s.veredito || `Sessão ${i+1} concluída. Dor média registrada: ${avg}.`;
+      return `<div style="padding:8px 0;border-top:1px solid var(--border,#E5E8EA)">
+        <div class="muted" style="font-size:11.5px;margin-bottom:2px">Sessão ${i+1}${s.dataISO?' · '+fmtDate(s.dataISO):''}</div>
+        <p style="margin:0;font-size:13px;line-height:1.5">${esc(texto)}</p>
+      </div>`;
+    }).join('');
     return `<div class="card">
       <div style="display:flex;justify-content:space-between"><span style="font-weight:700;font-size:14px">Ciclo ${cy.numero}</span><span class="badge badge-grey">${cy.status==='fechado'?'Concluído':'Em andamento'}</span></div>
       <div class="muted">${done} de ${SESSOES_POR_CICLO} sessões</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px">
-        ${cy.sessoes.filter(s=>s.concluida).map((s,i)=>{
-          const vals=s.exercicios.map(e=>e.dor).filter(v=>v!=null);
-          const avg = vals.length? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : '-';
-          return `<span class="badge badge-grey">S${i+1}: dor ${avg}</span>`;
-        }).join('')}
-      </div>
+      ${sessoesHtml||'<p class="muted" style="margin:0">Nenhuma sessão concluída ainda.</p>'}
     </div>`;
   }).join('');
   return `
@@ -779,6 +950,7 @@ function screenEvolucao(jointKey){
   <div class="content">
     ${reaval}
     ${j.status==='formado' ? `<div class="card" style="border-color:var(--green)"><span class="badge badge-green">Formatura</span><p class="muted" style="margin:0">Trilha de Fisioterapia concluída — migrado para Fortalecimento e manutenção.</p></div>` : ''}
+    ${resumoTestes(j)}
     ${ciclos || '<p class="muted">Sem ciclos ainda.</p>'}
   </div>`;
 }
@@ -871,16 +1043,76 @@ function wireEvents(){
   const btnConcluir = document.getElementById('btn-concluir-sessao');
   if(btnConcluir) btnConcluir.addEventListener('click', ()=>{
     const j = state.joints[state.ui.joint];
-    const s = currentSession(currentCycle(j));
+    const c = currentCycle(j);
+    const s = currentSession(c);
     s.concluida = true;
     s.dataISO = new Date().toISOString();
+    s.veredito = gerarVeredito(j, c, s);
+    j.ultimoVeredito = s.veredito;
+    const baseTestes = (j.intake && Array.isArray(j.intake.testes_diagnosticos) && j.intake.testes_diagnosticos.length)
+      ? j.intake.testes_diagnosticos : (TESTES_PADRAO[state.ui.joint] || TESTES_PADRAO.ombro);
+    j.testesPendentes = baseTestes.map(t=>({nome:t.nome, instrucao:t.instrucao, dor:null, nota:''}));
     saveState();
-    nav('joint', state.ui.joint);
-    showToast('Sessão concluída!');
+    nav('veredito', state.ui.joint);
+  });
+
+  // testes diagnósticos (veredito)
+  document.querySelectorAll('[data-pain-teste]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const j = state.joints[state.ui.joint];
+      const idx = Number(btn.dataset.painTeste);
+      if(j.testesPendentes && j.testesPendentes[idx]) j.testesPendentes[idx].dor = Number(btn.dataset.painVal);
+      saveState(); render();
+    });
+  });
+  document.querySelectorAll('[data-nota-teste]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const j = state.joints[state.ui.joint];
+      const idx = Number(inp.dataset.notaTeste);
+      if(j.testesPendentes && j.testesPendentes[idx]) j.testesPendentes[idx].nota = inp.value;
+      saveState();
+    });
+  });
+  const btnSalvarTestes = document.getElementById('btn-salvar-testes');
+  if(btnSalvarTestes) btnSalvarTestes.addEventListener('click', ()=>{
+    const jointKey = btnSalvarTestes.dataset.joint;
+    const j = state.joints[jointKey];
+    const allDone = btnSalvarTestes.dataset.alldone === '1';
+    if(j.testesPendentes && j.testesPendentes.length){
+      j.testesHistorico = j.testesHistorico || [];
+      j.testesHistorico.push({
+        dataISO: new Date().toISOString(),
+        testes: j.testesPendentes.map(t=>({nome:t.nome, dor:t.dor, nota:t.nota||''}))
+      });
+      j.testesPendentes = null;
+    }
+    saveState();
+    nav(allDone?'evolucao':'joint', jointKey);
   });
 
   const btnReaval = document.getElementById('btn-reaval');
   if(btnReaval) btnReaval.addEventListener('click', onReavaliacao);
+
+  // começar tratamento novo (reset de articulação)
+  const btnPedirReset = document.getElementById('btn-pedir-reset');
+  if(btnPedirReset) btnPedirReset.addEventListener('click', ()=>{
+    pendingResetJoint = btnPedirReset.dataset.joint;
+    render();
+  });
+  const btnCancelarReset = document.getElementById('btn-cancelar-reset');
+  if(btnCancelarReset) btnCancelarReset.addEventListener('click', ()=>{
+    pendingResetJoint = null;
+    render();
+  });
+  const btnConfirmarReset = document.getElementById('btn-confirmar-reset');
+  if(btnConfirmarReset) btnConfirmarReset.addEventListener('click', ()=>{
+    const jointKey = btnConfirmarReset.dataset.joint;
+    state.joints[jointKey] = emptyJoint();
+    pendingResetJoint = null;
+    saveState();
+    nav('intake', jointKey);
+    showToast('Tratamento zerado — bora começar de novo.');
+  });
 
   // settings
   const btnSaveSettings = document.getElementById('btn-save-settings');
@@ -946,16 +1178,21 @@ async function onAnalisar(){
       nome: e.nome||'Exercício', series: e.series||'2-3', repeticoes: e.repeticoes||'10-15',
       gif: (matchGif(e.nome||'')||{}).filename || null
     }));
+    let testes = Array.isArray(parsed.testes_diagnosticos) ? parsed.testes_diagnosticos
+      .filter(t=>t && t.nome && t.instrucao).slice(0,2).map(t=>({nome:String(t.nome), instrucao:String(t.instrucao)})) : [];
+    if(testes.length<2) testes = TESTES_PADRAO[jointKey] || TESTES_PADRAO.ombro;
     const j = state.joints[jointKey];
     j.intake = {
       diagnostico_resumo: parsed.diagnostico_resumo||'', lesao_catalogada: parsed.lesao_catalogada||'',
       observacao_seguranca: parsed.observacao_seguranca||'',
       avaliacao_laudo: parsed.avaliacao_laudo||'', plano_fase_atual: parsed.plano_fase_atual||'', projecao_tratamento: parsed.projecao_tratamento||'',
+      frequencia_semanal: parsed.frequencia_semanal||'',
+      testes_diagnosticos: testes,
       fonte: file?'laudo':'descricao', dataISO: new Date().toISOString()
     };
     j.status = 'ativo';
     j.faseAtual = 1;
-    j.cycles.push({ numero: j.cycles.length+1, status:'aberto', sessoes: Array.from({length:SESSOES_POR_CICLO},()=>({ concluida:false, exercicios: exercicios.map(e=>({...e, dor:null, nota:''})), dorDiaSeguinte:null, dataISO:null })) });
+    j.cycles.push({ numero: j.cycles.length+1, status:'aberto', sessoes: Array.from({length:SESSOES_POR_CICLO},()=>({ concluida:false, exercicios: exercicios.map(e=>({...e, dor:null, nota:''})), dorDiaSeguinte:null, dataISO:null, veredito:null })) });
     saveState();
     nav('avaliacao-laudo', jointKey);
     if(parsed.observacao_seguranca) showToast('⚠ ' + parsed.observacao_seguranca);
@@ -977,19 +1214,22 @@ function onUsarExemplo(){
       diagnostico_resumo: 'Quadro compatível com sobrecarga do ombro, tipo tendinopatia do manguito rotador, sem sinal de ruptura completa.',
       avaliacao_laudo: 'O laudo/descrição aponta dor na região anterior e lateral do ombro, mais forte em movimentos acima da cabeça, com força preservada mas com desconforto ao resistir — padrão típico de sobrecarga nos tendões do manguito rotador. Não há sinais indicados de ruptura completa, instabilidade franca ou comprometimento neurológico associado.',
       plano_fase_atual: 'Nesta Fase 1 (Proteger/acalmar), o foco é reduzir a inflamação e a dor sem perder amplitude de movimento. Por isso os exercícios começam com cargas leves (elástico e halteres leves) e trabalham rotação externa/interna e estabilização escapular — fortalecendo o manguito rotador sem sobrecarregar o tendão irritado.',
-      projecao_tratamento: 'Se a dor se mantiver controlada ao longo das 10 sessões deste ciclo, a expectativa é avançar pra Fase 2 (Restaurar capacidade) com cargas progressivamente maiores. Quadros de tendinopatia costumam responder em 2 a 4 ciclos (20-40 sessões) até a dor no dia a dia ficar irrelevante o suficiente pra formatura e migração pra Fortalecimento e manutenção — mas isso varia bastante pessoa a pessoa, e o próprio histórico de dor registrado aqui vai ajustando o ritmo.'
+      projecao_tratamento: 'Se a dor se mantiver controlada ao longo das 10 sessões deste ciclo, a expectativa é avançar pra Fase 2 (Restaurar capacidade) com cargas progressivamente maiores. Quadros de tendinopatia costumam responder em 2 a 4 ciclos (20-40 sessões) até a dor no dia a dia ficar irrelevante o suficiente pra formatura e migração pra Fortalecimento e manutenção — mas isso varia bastante pessoa a pessoa, e o próprio histórico de dor registrado aqui vai ajustando o ritmo.',
+      frequencia_semanal: '3x por semana, em dias alternados (ex.: segunda, quarta, sexta), pra dar tempo de recuperação ao tendão entre as sessões.'
     },
     joelho: {
       diagnostico_resumo: 'Quadro compatível com condromalácia patelar, com dor anterior no joelho ao agachar/descer escadas.',
       avaliacao_laudo: 'O laudo/descrição indica dor na frente do joelho, geralmente associada a desgaste da cartilagem por trás da patela, piorando ao agachar, descer escadas ou ficar muito tempo sentado com o joelho dobrado. Não há indicação de lesão ligamentar ou meniscal associada.',
       plano_fase_atual: 'Na Fase 1, o foco é reduzir a dor e começar a ativar o quadríceps sem sobrecarregar a articulação patelofemoral — por isso os exercícios priorizam contração isométrica, elevação de perna estendida e agachamento parcial controlado, evitando ângulos profundos de flexão que costumam doer mais nessa fase.',
-      projecao_tratamento: 'Com boa resposta, o avanço pelas fases seguintes costuma liberar amplitudes maiores de agachamento e cargas progressivas. Condromalácia tende a precisar de alguns ciclos (muitas vezes 3 ou mais) até a dor funcional sumir o suficiente pra formatura — fortalecimento consistente do quadríceps é o que mais pesa nessa evolução.'
+      projecao_tratamento: 'Com boa resposta, o avanço pelas fases seguintes costuma liberar amplitudes maiores de agachamento e cargas progressivas. Condromalácia tende a precisar de alguns ciclos (muitas vezes 3 ou mais) até a dor funcional sumir o suficiente pra formatura — fortalecimento consistente do quadríceps é o que mais pesa nessa evolução.',
+      frequencia_semanal: 'Dia sim, dia não (cerca de 3-4x por semana), pra permitir recuperação da articulação entre as sessões.'
     },
     punho: {
       diagnostico_resumo: 'Quadro compatível com tendinite de punho/mão, com dor e inflamação nos tendões da região.',
       avaliacao_laudo: 'O laudo/descrição aponta dor e sensação de inflamação nos tendões do punho, possivelmente ligada a movimento repetitivo (digitação, uso de mouse, atividades manuais). Não há indicação de compressão nervosa associada nem de lesão estrutural do complexo fibrocartilaginoso.',
       plano_fase_atual: 'Na Fase 1, o foco é desinflamar e recuperar mobilidade sem forçar os tendões irritados — os exercícios trabalham flexão/extensão e desvios do punho com carga bem leve, além de alongamento, evitando pegadas fortes ou movimentos repetitivos de alta carga nesse estágio.',
-      projecao_tratamento: 'Quadros de tendinite de punho costumam responder relativamente rápido quando a causa repetitiva é ajustada junto (pausas, ergonomia) — muitas vezes 1 a 2 ciclos já trazem melhora significativa, mas isso depende de manter o gatilho (repetição/postura) sob controle fora do app também.'
+      projecao_tratamento: 'Quadros de tendinite de punho costumam responder relativamente rápido quando a causa repetitiva é ajustada junto (pausas, ergonomia) — muitas vezes 1 a 2 ciclos já trazem melhora significativa, mas isso depende de manter o gatilho (repetição/postura) sob controle fora do app também.',
+      frequencia_semanal: 'Todo dia, com carga bem leve — exercícios curtos e frequentes ajudam mais nesse quadro do que sessões intensas e espaçadas.'
     }
   };
   const tx = textosExemplo[jointKey] || textosExemplo.ombro;
@@ -1000,11 +1240,13 @@ function onUsarExemplo(){
     avaliacao_laudo: tx.avaliacao_laudo,
     plano_fase_atual: tx.plano_fase_atual,
     projecao_tratamento: tx.projecao_tratamento,
+    frequencia_semanal: tx.frequencia_semanal,
+    testes_diagnosticos: TESTES_PADRAO[jointKey] || TESTES_PADRAO.ombro,
     fonte:'exemplo', dataISO:new Date().toISOString()
   };
   j.status = 'ativo';
   j.faseAtual = 1;
-  j.cycles.push({ numero: j.cycles.length+1, status:'aberto', sessoes: Array.from({length:SESSOES_POR_CICLO},()=>({ concluida:false, exercicios: exercicios.map(e=>({...e, dor:null, nota:''})), dorDiaSeguinte:null, dataISO:null })) });
+  j.cycles.push({ numero: j.cycles.length+1, status:'aberto', sessoes: Array.from({length:SESSOES_POR_CICLO},()=>({ concluida:false, exercicios: exercicios.map(e=>({...e, dor:null, nota:''})), dorDiaSeguinte:null, dataISO:null, veredito:null })) });
   saveState();
   nav('avaliacao-laudo', jointKey);
   showToast('Plano de exemplo carregado (sem IA).');
@@ -1048,14 +1290,17 @@ async function onReavaliacao(){
 function startNextCycle(j, exBase){
   j.faseAtual = Math.min(j.faseAtual+1, 4);
   const exercicios = exBase.map(e=>({ nome:e.nome, series:e.series, repeticoes:e.repeticoes, gif:(matchGif(e.nome)||{}).filename||null }));
-  j.cycles.push({ numero: j.cycles.length+1, status:'aberto', sessoes: Array.from({length:SESSOES_POR_CICLO},()=>({ concluida:false, exercicios: exercicios.map(e=>({...e, dor:null, nota:''})), dorDiaSeguinte:null, dataISO:null })) });
+  j.cycles.push({ numero: j.cycles.length+1, status:'aberto', sessoes: Array.from({length:SESSOES_POR_CICLO},()=>({ concluida:false, exercicios: exercicios.map(e=>({...e, dor:null, nota:''})), dorDiaSeguinte:null, dataISO:null, veredito:null })) });
   saveState();
   nav('joint', state.ui.joint);
   showToast('Novo ciclo montado!');
 }
 
 /* ===================== BOOT ===================== */
-if(state.profile && state.ui.screen==='onboarding') state.ui.screen='selector';
+// Sempre abre na Home (seletor de articulações) — exceto durante o onboarding,
+// que ainda não foi concluído. Evita "cair" direto na tela de exercícios da última vez.
+if(!state.profile) state.ui.screen = 'onboarding';
+else state.ui.screen = 'selector';
 render();
 </script>
 </body>
